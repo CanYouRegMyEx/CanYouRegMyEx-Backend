@@ -1,4 +1,5 @@
 import re
+import time
 from typing import List, Set
 from enum import Enum, auto
 
@@ -39,7 +40,7 @@ class Plot(Enum):
 
 
 class RowData:
-    def  __init__(self, index_jpn: str, index_int: str, episode: Episode, date_jpn: str, date_eng: str, plots: Set[Plot], manga_source: str, next_hint: str) -> None:
+    def  __init__(self, index_jpn: str, index_int: str, episode: Episode, date_jpn: str, date_eng: str, plots: Set[Plot], manga_source: str, is_tv_original: bool, next_hint: str) -> None:
         self.index_jpn = index_jpn
         self.index_int = index_int
         self.episode = episode
@@ -47,10 +48,11 @@ class RowData:
         self.date_eng = date_eng
         self.plots = plots
         self.manga_source = manga_source
+        self.is_tv_original = is_tv_original
         self.next_hint = next_hint
 
     def __str__(self) -> str:
-        return f'{self.index_jpn} | {self.index_int} | {self.episode.label} | {self.date_jpn} | {self.date_jpn} | {self.date_eng} | {self.plots} | {self.manga_source} | {self.next_hint}'
+        return f'{self.index_jpn} | {self.index_int} | {self.episode.label} | {self.date_jpn} | {self.date_jpn} | {self.date_eng} | {self.plots} | {self.manga_source} | {self.is_tv_original} | {self.next_hint}'
 
 
 table_pattern = re.compile(r"<h3><span.*?>(.*?)</span></h3>.*?<tbody.*?><tr>\s*?<th.+?</th></tr>(.*?)</tbody>", re.DOTALL)
@@ -59,6 +61,7 @@ row_pattern = re.compile(r"<tr>(?P<rowdata>.*?)</tr>", re.DOTALL)
 data_pattern = re.compile(r"<td.*?>(.*?)</td>\s*?", re.DOTALL)
 episode_pattern = re.compile(r"<a\s*?href=\"(.*?)\"\s*?title=\"(.*?)\">(.*?)</a>")
 plot_pattern = re.compile(r"<img.*?src=\".*?/Plot-(.*?)\..*?\".*?>")
+source_tv_original_pattern = re.compile(r".*?<b>TV Original</b>.*?")
 
 
 def extract_links(test_string: str, filter: str | None = None) -> List[RowData]:
@@ -120,13 +123,16 @@ def extract_links(test_string: str, filter: str | None = None) -> List[RowData]:
                 episode_label = episode_unformatted[0][2]
                 episode = Episode(episode_link, episode_title, episode_label)
             date_jpn = row_data_unformatted[3]
+            # date_jpn_datetime = time.strptime(date_jpn, "%B %d, %Y")
             date_eng = row_data_unformatted[4]
+            # date_eng_datetime = time.strptime(date_eng, "%B %d, %Y")
             plot_unformatted = re.findall(plot_pattern, row_data_unformatted[5])
             plots = set((map(lambda plot_string: Plot[plot_string.upper()], plot_unformatted)))
             manga_source = row_data_unformatted[6]
+            is_tv_original = True if re.match(source_tv_original_pattern, manga_source) else False
             next_hint = row_data_unformatted[7]
 
-            row_data = RowData(index_jpn, index_int, episode, date_jpn, date_eng, plots, manga_source, next_hint)
+            row_data = RowData(index_jpn, index_int, episode, date_jpn, date_eng, plots, manga_source, is_tv_original, next_hint)
             row_datas.append(row_data)
             print(f"row #{idx}: {row_data}")
 
@@ -138,7 +144,7 @@ def extract_links(test_string: str, filter: str | None = None) -> List[RowData]:
 
 # wikipage = ''
 
-# with open('./Anime - Detective Conan Wiki.html', 'r') as f:
+# with open('/home/phuwit/Programming/CanYouRegMyEx-Backend/src/lib/utils/Anime - Detective Conan Wiki.html', 'r') as f:
 #     wikipage = f.read()
 
-# print('\n'.join((map(str, extract_links(wikipage, 'shinkan')))))
+# print('\n'.join(map(str, extract_links(wikipage))))
