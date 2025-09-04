@@ -55,19 +55,25 @@ class RowData:
 
 table_pattern = re.compile(r"<h3><span.*?>(.*?)</span></h3>.*?<tbody.*?><tr>\s*?<th.+?</th></tr>(.*?)</tbody>", re.DOTALL)
 table_header_pattern = re.compile(r"Season (\d+?) - Episodes (\d+?)-(.+)")
-row_pattern = re.compile(r"<tr>(.*?)</tr>", re.DOTALL)
+row_pattern = re.compile(r"<tr>(?P<rowdata>.*?)</tr>", re.DOTALL)
 data_pattern = re.compile(r"<td.*?>(.*?)</td>\s*?", re.DOTALL)
 episode_pattern = re.compile(r"<a\s*?href=\"(.*?)\"\s*?title=\"(.*?)\">(.*?)</a>")
 plot_pattern = re.compile(r"<img.*?src=\".*?/Plot-(.*?)\..*?\".*?>")
 
 
-def extract_links(test_string: str) -> List[RowData]:
+def extract_links(test_string: str, filter: str | None = None) -> List[RowData]:
+    filter_pattern: None | re.Pattern[str] = None
+    if filter:
+        filter_pattern = re.compile(fr"<td.*?>.*?{re.escape(filter)}.*?</td>", re.IGNORECASE)
+
     tables_unformatted = re.findall(table_pattern, test_string)
     print(f"found {len(tables_unformatted)} tables")
     tables: List[Table] = []
     for unformatted in tables_unformatted:
         header = unformatted[0]
         html_table = unformatted[1]
+        if filter_pattern and not re.search(filter_pattern, html_table):
+            continue
 
         is_season = True
         is_airing = False
@@ -99,6 +105,8 @@ def extract_links(test_string: str) -> List[RowData]:
         # print('\n'.join(rows))
 
         for idx, row in enumerate(rows):
+            if filter_pattern and not re.search(filter_pattern, row):
+                continue
             row_data_unformatted = re.findall(data_pattern, row)
 
             index_jpn = row_data_unformatted[0]
@@ -126,3 +134,11 @@ def extract_links(test_string: str) -> List[RowData]:
             # print('\t'.join(map(lambda s: s.encode('unicode_escape').decode("utf-8"), row_data_unformatted)))
 
     return row_datas
+
+
+# wikipage = ''
+
+# with open('./Anime - Detective Conan Wiki.html', 'r') as f:
+#     wikipage = f.read()
+
+# print('\n'.join((map(str, extract_links(wikipage, 'shinkan')))))
