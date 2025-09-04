@@ -100,7 +100,7 @@ class Episode:
             airdate: str,
             main_characters: list,
             side_characters: list,
-            cases: list,
+            case: Case,
             gadgets: list,
     ) -> None:
         self.episode_number = episode_number
@@ -113,7 +113,7 @@ class Episode:
         self.airdate = airdate
         self.main_characters = main_characters
         self.side_characters = side_characters
-        self.cases = cases
+        self.cases = case.to_dict()
         self.gadgets = gadgets
 
     def to_dict(self):
