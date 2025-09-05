@@ -93,8 +93,7 @@ class Episode:
             episode_number: str,
             international_episode_number: str,
             title_eng: str,
-            title_kanji: str,
-            title_romaji: str,
+            title_jpn: str,
             description: str,
             season: str,
             airdate: str,
@@ -107,8 +106,7 @@ class Episode:
         self.episode_number = episode_number
         self.international_episode_number = international_episode_number
         self.title_eng = title_eng
-        self.title_kanji = title_kanji
-        self.title_romaji = title_romaji
+        self.title_jpn = title_jpn
         self.description = description
         self.season = season
         self.airdate = airdate
@@ -121,9 +119,8 @@ class Episode:
         return {
             "episode_number": self.episode_number,
             "international_episode_number": self.international_episode_number,
+            "title_jpn": self.title_jpn,
             "title_eng": self.title_eng,
-            "title_kanji": self.title_kanji,
-            "title_romaji": self.title_romaji,
             "description": self.description,
             "season": self.season,
             "airdate": self.airdate,
@@ -137,11 +134,14 @@ def read_file(file_path):
     with open(file_path, 'r', encoding="utf-8") as f:
         return f.read()
 
+def get_data_between_tag(str: str):
+    return re.findall(r'\s*[^>]+(?=<)', str)
 
 # pattern regx
 info_table_pattern = re.compile(r'<table class="infobox"[^>]*>.*?</table>', re.DOTALL)
 
 info_header_pattern = re.compile(r'<b>(.*?)</b>', re.DOTALL)
+info_row_key_vlaue_pattern = re.compile(r'<tr>\s*<th>(?P<row_key>[^:]*):\s*..th>\s*<td>(?P<row_value>[^\n]+)', re.DOTALL)
 
 episode_pattern = re.compile(r'Episode\s+(\d+).*?Episode\s+(\d+)', re.DOTALL)
 
@@ -150,9 +150,8 @@ def extract_episode():
     episode_data = {
         "episode_number": "",
         "international_episode_number": "",
+        "title_jpn": "",
         "title_eng": "",
-        "title_kanji": "",
-        "title_romaji": "",
         "description": "",
         "season": "",
         "airdate": "",
@@ -168,11 +167,74 @@ def extract_episode():
     # print(html_content)
 
     info_table = re.findall(info_table_pattern, html_content)
-    info_row_header_table = re.findall(info_header_pattern, info_table[0])
+    # print(info_table[0])
 
-    print(info_row_header_table)
+    info_row_header_table = re.findall(info_header_pattern, info_table[0])
+    info_row_data_table = re.finditer(info_row_key_vlaue_pattern,info_table[0])
+
+    # print(info_row_data_table)
 
     episode_data["episode_number"], episode_data["international_episode_number"] = re.findall(episode_pattern ,info_row_header_table[0])[0]
+    for row in info_row_data_table:
+        row_key = row.group('row_key')
+        row_value = row.group('row_value')
+        print(f"{row_key}:{row_value}\n")
+
+        if row_key == "Japanese title":
+            # row_vlaue = 図書館殺人事件 <br /> (Toshokan Satsujin Jiken)
+            title = re.split(r' <br /> ', row_value)
+            episode_data["title_jpn"] = ''.join(title) 
+            print(episode_data)
+
+        elif row_key == "Original airdate":
+            # ex. Original airdate:March 3, 1997 <br /> March 15, 2014 <b>(Remastered version)</b>
+            original_airdate = re.split(r' <br />', row_value)[0]
+
+        elif row_key == "Broadcast rating":
+            # ex. Broadcast rating:16.8%
+            pass
+        elif row_key == "Remastered rating":
+            # ex. Remastered rating:8.8%
+            pass
+        elif row_key == "Manga case":
+            # ex. Manga case:#26
+            pass
+        elif row_key == "Season":
+            # Season:<a href="/wiki/Season_2" title="Season 2">2</a>
+            episode_data["season"] = get_data_between_tag(row_value)[0]
+            pass
+        elif row_key == "Manga source":
+            # ex. Manga source:<a href="/wiki/Volume_10#Library_Murder_Case" title="Volume 10">Volume 10: Files 6-8 (096-098)</a>
+            pass
+        elif row_key == "English title":
+            # ex. English title:The Book Without Pages
+            episode_data["title_eng"] = row_value
+            pass
+        elif row_key == "Dubbed episode":
+            pass
+        elif row_key == "English airdate":
+           episode_data["airdate"] = row_value           
+
+        # elif row_key == "Cast":
+        #     pass
+        # elif row_key == "Case solved by":
+        #     pass
+        # elif row_key == "Next Conan's Hint":
+        #     pass
+        # elif row_key == "Director":
+        #     pass
+        # elif row_key == "Organizer":
+        #     pass
+        # elif row_key == "Storyboard":
+        #     pass
+        # elif row_key == "Episode director":
+        #     pass
+        # elif row_key == "Animation director":
+        #     pass
+        # elif row_key == "Character design":
+        #     pass
+    
+
 
     print(episode_data)
 
