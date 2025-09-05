@@ -145,32 +145,9 @@ info_row_key_vlaue_pattern = re.compile(r'<tr>\s*<th>(?P<row_key>[^:]*):\s*..th>
 
 episode_pattern = re.compile(r'Episode\s+(\d+).*?Episode\s+(\d+)', re.DOTALL)
 
-def extract_episode():
-
-    episode_data = {
-        "episode_number": "",
-        "international_episode_number": "",
-        "title_jpn": "",
-        "title_eng": "",
-        "description": "",
-        "season": "",
-        "airdate": "",
-        "main_characters": [],
-        "side_characters": [],
-        "cases": {}, 
-        "gadgets": []
-    }
-
-
-    # for test
-    html_content = read_file("episode.html")
-    # print(html_content)
-
-    info_table = re.findall(info_table_pattern, html_content)
-    # print(info_table[0])
-
-    info_row_header_table = re.findall(info_header_pattern, info_table[0])
-    info_row_data_table = re.finditer(info_row_key_vlaue_pattern,info_table[0])
+def extract_table_infobox(html_table, episode_data):
+    info_row_header_table = re.findall(info_header_pattern, html_table[0])
+    info_row_data_table = re.finditer(info_row_key_vlaue_pattern,html_table[0])
 
     # print(info_row_data_table)
 
@@ -178,13 +155,11 @@ def extract_episode():
     for row in info_row_data_table:
         row_key = row.group('row_key')
         row_value = row.group('row_value')
-        print(f"{row_key}:{row_value}\n")
 
         if row_key == "Japanese title":
             # row_vlaue = 図書館殺人事件 <br /> (Toshokan Satsujin Jiken)
             title = re.split(r' <br /> ', row_value)
             episode_data["title_jpn"] = ''.join(title) 
-            print(episode_data)
 
         elif row_key == "Original airdate":
             # ex. Original airdate:March 3, 1997 <br /> March 15, 2014 <b>(Remastered version)</b>
@@ -233,10 +208,38 @@ def extract_episode():
         #     pass
         # elif row_key == "Character design":
         #     pass
+
+    return episode_data
     
+    
+def extract_episode():
+
+    episode_data = {
+        "episode_number": "",
+        "international_episode_number": "",
+        "title_jpn": "",
+        "title_eng": "",
+        "description": "",
+        "season": "",
+        "airdate": "",
+        "main_characters": [],
+        "side_characters": [],
+        "cases": {}, 
+        "gadgets": []
+    }
 
 
+    # for test
+    html_content = read_file("episode.html")
+    # print(html_content)
+
+    info_table = re.findall(info_table_pattern, html_content)
+    # print(info_table[0])
+
+    episode_data = extract_table_infobox(info_table, episode_data)
     print(episode_data)
+
+    
 
     
 
