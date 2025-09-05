@@ -64,8 +64,8 @@ class Case:
             cause_of_death: str,
             suspects_name_list: list,
             crime_description: str
-
             )-> None:
+        
         self.situation = situation
         self.case_image_url = case_image_url
         self.crime_type = crime_type
@@ -91,7 +91,7 @@ class Episode:
     def __init__(
             self,
             episode_number: str,
-            international_number: str,
+            international_episode_number: str,
             title_eng: str,
             title_kanji: str,
             title_romaji: str,
@@ -103,8 +103,9 @@ class Episode:
             case: Case,
             gadgets: list,
     ) -> None:
+        
         self.episode_number = episode_number
-        self.international_number = international_number
+        self.international_episode_number = international_episode_number
         self.title_eng = title_eng
         self.title_kanji = title_kanji
         self.title_romaji = title_romaji
@@ -119,7 +120,7 @@ class Episode:
     def to_dict(self):
         return {
             "episode_number": self.episode_number,
-            "international_number": self.international_number,
+            "international_episode_number": self.international_episode_number,
             "title_eng": self.title_eng,
             "title_kanji": self.title_kanji,
             "title_romaji": self.title_romaji,
@@ -131,5 +132,51 @@ class Episode:
             "cases": self.cases,
             "gadgets": self.gadgets,
         }
+    
+def read_file(file_path):
+    with open(file_path, 'r', encoding="utf-8") as f:
+        return f.read()
 
 
+# pattern regx
+info_table_pattern = re.compile(r'<table class="infobox"[^>]*>.*?</table>', re.DOTALL)
+
+info_header_pattern = re.compile(r'<b>(.*?)</b>', re.DOTALL)
+
+episode_pattern = re.compile(r'Episode\s+(\d+).*?Episode\s+(\d+)', re.DOTALL)
+
+def extract_episode():
+
+    episode_data = {
+        "episode_number": "",
+        "international_episode_number": "",
+        "title_eng": "",
+        "title_kanji": "",
+        "title_romaji": "",
+        "description": "",
+        "season": "",
+        "airdate": "",
+        "main_characters": [],
+        "side_characters": [],
+        "cases": {}, 
+        "gadgets": []
+    }
+
+
+    # for test
+    html_content = read_file("episode.html")
+    # print(html_content)
+
+    info_table = re.findall(info_table_pattern, html_content)
+    info_row_header_table = re.findall(info_header_pattern, info_table[0])
+
+    print(info_row_header_table)
+
+    episode_data["episode_number"], episode_data["international_episode_number"] = re.findall(episode_pattern ,info_row_header_table[0])[0]
+
+    print(episode_data)
+
+    
+
+
+extract_episode()
