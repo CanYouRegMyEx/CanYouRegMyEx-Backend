@@ -64,9 +64,13 @@ class Character:
 # Match Patterns
 profile_table_pattern = re.compile(r'<table class="infobox"[^>]*>.*?</table>', re.DOTALL)
 profile_table_rows_pattern = re.compile(r'<th[^>]*>(?P<row_header>[^<]+):\s*</th>\s*<td>(?:<^\n+>)?(?P<row_data>[^\n]+)\n</td>', re.DOTALL)
-general_data_extraction_pattern = re.compile(r'\s*([^>\n]+)(?=<|\n)(?!<\/a>)', re.DOTALL)
+general_data_extraction_pattern = re.compile(r'\s*([^>\n]+)(?=<|\n)', re.DOTALL)
 status_extraction_pattern = re.compile(r'\s*([^>\n]+)(?=<|$)', re.DOTALL)
 actors_pattern = re.compile(r'\s*([^>\n]+)(?=<|\n|$)', re.DOTALL)
+container_div_pattern = re.compile(r'<div class="mw-parser-output">(.+)<\/div>\n<!--', re.DOTALL)
+summary_pattern = re.compile(r'((?:<p><b>(?:.+)\n?<\/p>)(?:<p>(?:.+)\s+<\/p>))')
+paragraph_with_header_pattern = re.compile(r'(?:<h2><span[^>]+>(?P<row_header>.+)<\/span><\/h2>)\n(?P<row_data>(?:.+\s<\/p>)+)')
+paragraph_html_extraction_pattern = re.compile(r'(<p>.+\s+<\/p>)')
 
 # Split Patterns
 br_split_pattern = re.compile(r' <br /> |<br /> | <br />')
@@ -74,19 +78,15 @@ nakaten_split_pattern = re.compile(r'・')
 space_split_pattern = re.compile(r' ')
 
 # Substitute Patterns
-reference_substitute_pattern = re.compile(r'&#\d+;\d+&#\d+;')
+reference_substitute_pattern = re.compile(r'&#\d+;\d+&#\d+;|&#\d+;')
+language_help_substitute_pattern = re.compile(r'<span[^>]*>\?<\/span>')
 
 def read_file(file_path):
     with open(file_path, 'r', encoding="utf-8") as f:
         return f.read()
 
-# Weird ass parameter until someone go fetches the page for me
-def extract_character(n):
-    html = read_file(f"../char_test{n}.html")
-
-    # =============== Profile Parsing ===============
-
-    profile_table = re.findall(profile_table_pattern, html)
+def extract_character_profile(html_string):  
+    profile_table = re.findall(profile_table_pattern, html_string)
     table_html = profile_table[0]
 
     profile_data = {
@@ -179,7 +179,8 @@ def extract_character(n):
             # If singular, my regex breaks and I'll be real with you, I'm not doing that again.
 
             occupations = re.findall(general_data_extraction_pattern, row_data_cleansed)
-            if not occupations and row_data_cleansed: occupations = row_data_cleansed
+            if not occupations and row_data_cleansed: occupations = row_data_cleansed.strip()
+            occupations = [occ.strip() for occ in occupations]
             profile_data["occupations"] = occupations
 
         elif row_header == "Status":
@@ -234,3 +235,59 @@ def extract_character(n):
         profile = Profile(**profile_data)
 
     return profile
+
+def cleanse_paragraph(cleansed_row_data):
+    paragraphs = re.findall(paragraph_html_extraction_pattern, cleansed_row_data)
+    paragraphs_cleansed = []
+
+    for paragraph in paragraphs:
+
+        temp = re.findall(general_data_extraction_pattern, paragraph)
+        temp = [t.strip() for t in temp]
+        paragraphs_cleansed.append(" ".join(temp))
+    
+    return paragraphs_cleansed
+
+def extract_character_paragraphs(html_string):
+    container_div = re.findall(container_div_pattern, html_string)[0]
+    container_div_cleansed = re.sub(reference_substitute_pattern, '', container_div)
+    container_div_cleansed = re.sub(language_help_substitute_pattern, '', container_div_cleansed)
+    
+    paragraphs_data = {
+        "summary": [],
+        "background": [],
+        "appearance": [],
+        "personality": []
+    }
+
+    summary_paragraphs = re.findall(summary_pattern, container_div_cleansed)[0]
+    paragraphs_data["summary"] = cleanse_paragraph("".join(summary_paragraphs))
+
+    for row in re.finditer(paragraph_with_header_pattern, container_div_cleansed):
+
+        row_header = row.group("row_header")
+        row_data = row.group("row_data")
+        
+        if row_header == "Background":
+            
+            paragraphs_data["background"] = cleanse_paragraph(row_data)
+        
+        elif row_header == "Personality":
+
+            paragraphs_data["personality"] = cleanse_paragraph(row_data)
+
+        elif row_header == "Appearance":
+
+            paragraphs_data["appearance"] = cleanse_paragraph(row_data)
+
+    return paragraphs_data
+
+# Weird ass parameter until someone go fetches the page for me
+def extract_character(n):
+    html_string = read_file(f"../char_test{n}.html")
+
+    profile = extract_character_profile(html_string)
+    paragraphs_dict = extract_character_paragraphs(html_string)
+    character = Character(profile, **paragraphs_dict)
+    return character
+    
