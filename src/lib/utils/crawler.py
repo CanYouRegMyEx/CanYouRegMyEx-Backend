@@ -6,7 +6,7 @@ def fetch_html_content(url: str, headers: dict):
         with urllib.request.urlopen(request) as response:
             return response.read().decode('utf-8')
     except Exception as e:
-        print(f"❌ Error fetching {url}: {e}")
+        print(f"Error fetching {url}: {e}")
         return None
 
 def crawl_detective_conan(url: str):
@@ -14,14 +14,14 @@ def crawl_detective_conan(url: str):
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
     
-    print(f"🌐 Crawling: {url}")
+    print(f"Crawling: {url}")
     html_content = fetch_html_content(url, browser_headers)
     
     if html_content:
-        print(f"✅ Successfully crawled: {url}")
+        print(f"Successfully crawled: {url}")
         return html_content
     else:
-        print(f"❌ Failed to crawl: {url}")
+        print(f"Failed to crawl: {url}")
         return None
 
 def crawling():
@@ -36,7 +36,7 @@ def crawling():
 
     with open('conan_main_page_raw.html', 'w', encoding='utf-8') as main_file:
         main_file.write(main_html_content)
-    print("✅ Main page saved: conan_main_page_raw.html")
+    print("Main page saved: conan_main_page_raw.html")
     
     # ===== Level 2: Crawl แต่ละตอน (เทส 5 ตอน) =====
     episode_urls = [
@@ -47,7 +47,7 @@ def crawling():
         base_url + "/wiki/Episode_5"
     ]
     
-    print(f"\nCrawling {len(episode_urls)} episode pages... 🔄")
+    print(f"\nCrawling {len(episode_urls)} episode pages...")
     
     for i, episode_url in enumerate(episode_urls):
         print(f"Crawling episode {i+1}: {episode_url}") 
@@ -59,7 +59,7 @@ def crawling():
                 ep_file.write(episode_html)
             print(f"Saved: {filename}")
     
-    print(f"\n✅ All crawling completed successfully!")
+    print(f"\nAll crawling completed successfully!")
     return True
 
 crawling()
