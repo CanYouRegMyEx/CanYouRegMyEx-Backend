@@ -92,6 +92,7 @@ class Episode:
             self,
             episode_number: str,
             international_episode_number: str,
+            episode_image_url: str,
             title_eng: str,
             title_jpn: str,
             description: str,
@@ -105,6 +106,7 @@ class Episode:
         
         self.episode_number = episode_number
         self.international_episode_number = international_episode_number
+        self.episode_image_url = episode_image_url
         self.title_eng = title_eng
         self.title_jpn = title_jpn
         self.description = description
@@ -119,6 +121,7 @@ class Episode:
         return {
             "episode_number": self.episode_number,
             "international_episode_number": self.international_episode_number,
+            "episode_image_url": self.episode_image_url,
             "title_jpn": self.title_jpn,
             "title_eng": self.title_eng,
             "description": self.description,
@@ -137,21 +140,30 @@ def read_file(file_path):
 def get_data_between_tag(str: str):
     return re.findall(r'\s*[^>]+(?=<)', str)
 
-# pattern regx
+BASE_URL = "https://www.detectiveconanworld.com"
+
+####################################### pattern regx #######################################
+
 info_table_pattern = re.compile(r'<table class="infobox"[^>]*>.*?</table>', re.DOTALL)
 
 info_header_pattern = re.compile(r'<b>(.*?)</b>', re.DOTALL)
 info_row_key_vlaue_pattern = re.compile(r'<tr>\s*<th>(?P<row_key>[^:]*):\s*..th>\s*<td>(?P<row_value>[^\n]+)', re.DOTALL)
 
 episode_pattern = re.compile(r'Episode\s+(\d+).*?Episode\s+(\d+)', re.DOTALL)
+episode_image_pattern = re.compile(r'src="([^"]+)"', re.DOTALL)
 
-def extract_table_infobox(html_table, episode_data):
+description_paragraph_pattern = re.compile(r'<p>\s*<i><b>.*\s</p>')
+description_pattern = re.compile(r'\s*[^>&*;]+(?=<)')
+
+####################################### pattern regx #######################################
+
+def extract_table_infobox(html_table, episode_data: dict):
     info_row_header_table = re.findall(info_header_pattern, html_table[0])
     info_row_data_table = re.finditer(info_row_key_vlaue_pattern,html_table[0])
 
-    # print(info_row_data_table)
-
     episode_data["episode_number"], episode_data["international_episode_number"] = re.findall(episode_pattern ,info_row_header_table[0])[0]
+    episode_data["episode_image_url"] = BASE_URL + re.findall(episode_image_pattern, html_table[0])[0]
+
     for row in info_row_data_table:
         row_key = row.group('row_key')
         row_value = row.group('row_value')
@@ -211,12 +223,23 @@ def extract_table_infobox(html_table, episode_data):
 
     return episode_data
     
+def extract_episode_description(html_content, episode_data):
+    description_p = html_content[0]
+    description = ''
+    for text in re.findall(description_pattern, description_p):
+        if(len(text) > 3):
+            description += text+' '
+    episode_data["description"] = description
+
+    return episode_data
     
-def extract_episode():
+
+def main_extract_episode():
 
     episode_data = {
         "episode_number": "",
         "international_episode_number": "",
+        "episode_image_url": "",
         "title_jpn": "",
         "title_eng": "",
         "description": "",
@@ -234,9 +257,12 @@ def extract_episode():
     # print(html_content)
 
     info_table = re.findall(info_table_pattern, html_content)
-    # print(info_table[0])
-
     episode_data = extract_table_infobox(info_table, episode_data)
+ 
+    paragraph_description = re.findall(description_paragraph_pattern, html_content)
+    episode_data = extract_episode_description(paragraph_description, episode_data )
+
+    
     print(episode_data)
 
     
@@ -244,4 +270,4 @@ def extract_episode():
     
 
 
-extract_episode()
+main_extract_episode()
