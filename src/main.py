@@ -2,7 +2,7 @@ from typing import Union
 
 from fastapi import FastAPI
 from pydantic import BaseModel
-from lib.utils.extract_character import *
+import lib.utils.extract_character
 
 app = FastAPI()
 
@@ -29,4 +29,5 @@ def update_item(item_id: int, item: Item):
 
 @app.get("/extract_character")
 def extract_character_page(character_profile_url):
-    return extract_character(character_profile_url)
+    res = lib.utils.extract_character.extract_character(character_profile_url)
+    return res
