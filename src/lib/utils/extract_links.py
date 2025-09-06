@@ -1,5 +1,5 @@
+from dataclasses import asdict, dataclass
 import re
-import time
 from typing import List, Set
 from enum import Enum, auto
 
@@ -38,21 +38,23 @@ class Plot(Enum):
     DC = auto()
     MKO = auto()
 
-
+@dataclass
 class RowData:
-    def  __init__(self, index_jpn: str, index_int: str, episode: Episode, date_jpn: str, date_eng: str, plots: Set[Plot], manga_source: str, is_tv_original: bool, next_hint: str) -> None:
-        self.index_jpn = index_jpn
-        self.index_int = index_int
-        self.episode = episode
-        self.date_jpn = date_jpn
-        self.date_eng = date_eng
-        self.plots = plots
-        self.manga_source = manga_source
-        self.is_tv_original = is_tv_original
-        self.next_hint = next_hint
+    index_jpn: str
+    index_int: str
+    episode: Episode
+    date_jpn: str
+    date_eng: str
+    plots: Set[Plot]
+    manga_source: str
+    is_tv_original: bool
+    next_hint: str
 
     def __str__(self) -> str:
         return f'{self.index_jpn} | {self.index_int} | {self.episode.label} | {self.date_jpn} | {self.date_jpn} | {self.date_eng} | {self.plots} | {self.manga_source} | {self.is_tv_original} | {self.next_hint}'
+
+    def get_dict(self):
+        return asdict(self)
 
 
 table_pattern = re.compile(r"<h3><span.*?>(.*?)</span></h3>.*?<tbody.*?><tr>\s*?<th.+?</th></tr>(.*?)</tbody>", re.DOTALL)
@@ -148,3 +150,6 @@ def extract_links(test_string: str, filter: str | None = None) -> List[RowData]:
 #     wikipage = f.read()
 
 # print('\n'.join(map(str, extract_links(wikipage))))
+
+# page_dict = list(map(asdict, extract_links(wikipage)))
+# print(page_dict)
