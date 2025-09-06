@@ -149,7 +149,7 @@ info_table_pattern = re.compile(r'<table class="infobox"[^>]*>.*?</table>', re.D
 info_header_pattern = re.compile(r'<b>(.*?)</b>', re.DOTALL)
 info_row_key_vlaue_pattern = re.compile(r'<tr>\s*<th>(?P<row_key>[^:]*):\s*..th>\s*<td>(?P<row_value>[^\n]+)', re.DOTALL)
 
-episode_pattern = re.compile(r'Episode\s+(\d+).*?Episode\s+(\d+)', re.DOTALL)
+episode_number_pattern = re.compile(r'Episode\s+(\d+).*?Episode\s+(\d+)', re.DOTALL)
 episode_image_pattern = re.compile(r'src="([^"]+)"', re.DOTALL)
 
 description_paragraph_pattern = re.compile(r'<p>\s*<i><b>.*\s</p>')
@@ -161,7 +161,7 @@ def extract_table_infobox(html_table, episode_data: dict):
     info_row_header_table = re.findall(info_header_pattern, html_table[0])
     info_row_data_table = re.finditer(info_row_key_vlaue_pattern,html_table[0])
 
-    episode_data["episode_number"], episode_data["international_episode_number"] = re.findall(episode_pattern ,info_row_header_table[0])[0]
+    episode_data["episode_number"], episode_data["international_episode_number"] = re.findall(episode_number_pattern ,info_row_header_table[0])[0]
     episode_data["episode_image_url"] = BASE_URL + re.findall(episode_image_pattern, html_table[0])[0]
 
     for row in info_row_data_table:
@@ -262,6 +262,7 @@ def main_extract_episode():
     paragraph_description = re.findall(description_paragraph_pattern, html_content)
     episode_data = extract_episode_description(paragraph_description, episode_data )
 
+    
     
     print(episode_data)
 
