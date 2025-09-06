@@ -1,6 +1,6 @@
 from dataclasses import asdict, dataclass
 import re
-from typing import List, Set
+from typing import Any, Dict, List, Set
 from enum import Enum, auto
 
 
@@ -111,25 +111,25 @@ def extract_row_datas(table: Table, row_data_pattern: re.Pattern[str], filter_pa
             continue
         row_data_unformatted = re.findall(data_pattern, row)
 
-        index_jpn = row_data_unformatted[0].trim()
-        index_int = row_data_unformatted[1].trim()
+        index_jpn = row_data_unformatted[0].strip()
+        index_int = row_data_unformatted[1].strip()
         episode_unformatted = re.findall(episode_pattern, row_data_unformatted[2])
         if len(episode_unformatted) == 0:
             episode = Episode('', row_data_unformatted[2], row_data_unformatted[2])
         else:
-            episode_link = episode_unformatted[0][0].trim()
-            episode_title = episode_unformatted[0][1].trim()
-            episode_label = episode_unformatted[0][2].trim()
+            episode_link = episode_unformatted[0][0].strip()
+            episode_title = episode_unformatted[0][1].strip()
+            episode_label = episode_unformatted[0][2].strip()
             episode = Episode(episode_link, episode_title, episode_label)
-        date_jpn = row_data_unformatted[3].trim()
+        date_jpn = row_data_unformatted[3].strip()
         # date_jpn_datetime = time.strptime(date_jpn, "%B %d, %Y")
-        date_eng = row_data_unformatted[4].trim()
+        date_eng = row_data_unformatted[4].strip()
         # date_eng_datetime = time.strptime(date_eng, "%B %d, %Y")
         plot_unformatted = re.findall(plot_pattern, row_data_unformatted[5])
         plots = set((map(lambda plot_string: Plot[plot_string.upper()], plot_unformatted)))
-        manga_source = row_data_unformatted[6].trim()
+        manga_source = row_data_unformatted[6].strip()
         is_tv_original = True if re.match(source_tv_original_pattern, manga_source) else False
-        next_hint = row_data_unformatted[7].trim()
+        next_hint = row_data_unformatted[7].strip()
 
         row_data = RowData(index_jpn, index_int, episode, date_jpn, date_eng, plots, manga_source, is_tv_original, next_hint)
         row_datas.append(row_data)
@@ -151,12 +151,18 @@ def extract_links(page_html: str, filter: str | None = None) -> List[RowData]:
     return row_datas
 
 
+def extract_links_asdict(page_html: str, filter: str | None = None):
+    row_datas = extract_links(page_html, filter)
+    return map(asdict, row_datas)
+
+
 # wikipage = ''
 
 # with open('/home/phuwit/Programming/CanYouRegMyEx-Backend/src/lib/utils/Anime - Detective Conan Wiki.html', 'r') as f:
 #     wikipage = f.read()
 
-# print('\n'.join(map(str, extract_links(wikipage))))
+# row_datas = extract_links(wikipage)
+# row_dicts = extract_links_asdict(wikipage)
 
-# page_dict = list(map(asdict, extract_links(wikipage)))
-# print(page_dict)
+# print(row_datas)
+# print(row_dicts)
