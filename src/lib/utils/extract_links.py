@@ -4,22 +4,22 @@ from typing import List, Set
 from enum import Enum, auto
 
 
+@dataclass
 class Episode:
-    def __init__(self, link: str, title: str, label: str) -> None:
-        self.link = link
-        self.title = title
-        self.label = label
+    link: str
+    title: str
+    label: str
 
 
+@dataclass
 class Table:
-    def __init__(self, is_season: bool, is_airing: bool, season: int, start_ep: int, end_ep: int, header: str, html_table: str) -> None:
-        self.is_season = is_season
-        self.is_airing = is_airing
-        self.season = season
-        self.start_ep = start_ep
-        self.end_ep = end_ep
-        self.header = header
-        self.html_table = html_table
+    is_season: bool
+    is_airing: bool
+    season: int
+    start_ep: int
+    end_ep: int
+    header: str
+    html_table: str
 
     def __str__(self) -> str:
         return f"Table: S{self.season} ({self.start_ep}-{self.end_ep}) [{self.header}]"
@@ -37,6 +37,7 @@ class Plot(Enum):
     DB = auto()
     DC = auto()
     MKO = auto()
+
 
 @dataclass
 class RowData:
