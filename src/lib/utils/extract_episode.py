@@ -24,18 +24,18 @@ class SideCharacter:
             self,
             character_image_url: str,
             name_eng: str,  
-            description_character: list,
+            character_info: list,
             ) -> None:
         self.character_image_url = character_image_url
         self.name_eng = name_eng
-        self.description_character = description_character
+        self.character_info = character_info
 
     
     def to_dict(self):
         return {
             "character_image_url": self.character_image_url,
             "name_eng": self.name_eng,
-            "description_character": self.description_character,
+            "character_info": self.character_info,
         }
 
 class Gadget:
@@ -98,10 +98,10 @@ class Episode:
             description: str,
             season: str,
             airdate: str,
-            main_characters: list,
-            side_characters: list,
-            case: Case,
-            gadgets: list,
+            main_characters: list[MainCharacter],
+            side_characters: list[SideCharacter],
+            case: list[Case],
+            gadgets: list[Gadget],
     ) -> None:
         
         self.episode_number = episode_number
@@ -155,9 +155,16 @@ episode_image_pattern = re.compile(r'src="([^"]+)"', re.DOTALL)
 description_paragraph_pattern = re.compile(r'<p>\s*<i><b>.*\s</p>')
 description_pattern = re.compile(r'\s*[^>&*;]+(?=<)')
 
+main_characters_pattern = re.compile(r'<div\s+style="display:flex[^"]*".*?>\s(.*?)<h2>', re.DOTALL)
+get_tag_a_pattern = re.compile(r'<a\s*href[^>]*>.*a>') 
+href_name_src_character_pattern = re.compile(r'href="(?P<link_href>[^"]*)"\s*[^>]*><img\s*alt="(?P<name>[^"]*)"\ssrc="(?P<image_url>[^"]*)')
+
+side_characters_pattern = re.compile(r'<div\sstyle="overflow:hidden">\s*(.*?)<h3>', re.DOTALL)
+
+
 ####################################### pattern regx #######################################
 
-def extract_table_infobox(html_table, episode_data: dict):
+def extract_table_infobox(html_table, episode_data: dict)-> dict:
     info_row_header_table = re.findall(info_header_pattern, html_table[0])
     info_row_data_table = re.finditer(info_row_key_vlaue_pattern,html_table[0])
 
@@ -223,8 +230,8 @@ def extract_table_infobox(html_table, episode_data: dict):
 
     return episode_data
     
-def extract_episode_description(html_content, episode_data):
-    description_p = html_content[0]
+def extract_episode_description(description_p, episode_data: dict)-> dict:
+    description_p = description_p[0]
     description = ''
     for text in re.findall(description_pattern, description_p):
         if(len(text) > 3):
@@ -233,6 +240,32 @@ def extract_episode_description(html_content, episode_data):
 
     return episode_data
     
+def extract_main_characters(div_main_characters, episode_data: dict)-> dict: 
+    div_main_characters = div_main_characters[0]
+    
+    main_character_list:list[MainCharacter] = []
+
+    for tag_a_character in re.findall(get_tag_a_pattern, div_main_characters):
+        # print(tag_a_character, "\n")   
+        for char in re.finditer(href_name_src_character_pattern, tag_a_character):
+            main_character_data = {
+                "character_url": BASE_URL + char.group("link_href"),
+                "character_image_url": BASE_URL + char.group("image_url"),
+                "name_eng":  char.group("name")
+            }
+
+        character = MainCharacter(**main_character_data)
+        main_character_list.append(character)
+
+    episode_data["main_characters"] = main_character_list
+
+    return episode_data
+
+def extract_side_characters(div_side_characters, episode_data: dict)-> dict:
+    print(div_side_characters[0])
+    
+    return episode_data
+
 
 def main_extract_episode():
 
@@ -245,10 +278,10 @@ def main_extract_episode():
         "description": "",
         "season": "",
         "airdate": "",
-        "main_characters": [],
-        "side_characters": [],
-        "cases": {}, 
-        "gadgets": []
+        "main_characters": list[MainCharacter],
+        "side_characters": list[SideCharacter],
+        "cases": list[Case], 
+        "gadgets": list[Gadget]
     }
 
 
@@ -262,9 +295,13 @@ def main_extract_episode():
     paragraph_description = re.findall(description_paragraph_pattern, html_content)
     episode_data = extract_episode_description(paragraph_description, episode_data )
 
+    div_main_characters = re.findall(main_characters_pattern, html_content)
+    episode_data = extract_main_characters(div_main_characters, episode_data)
     
-    
-    print(episode_data)
+    div_side_characters = re.findall(side_characters_pattern, html_content)
+    episode_data = extract_side_characters(div_side_characters, episode_data)
+
+    # print(episode_data)
 
     
 
