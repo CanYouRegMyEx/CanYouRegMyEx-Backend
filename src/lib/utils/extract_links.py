@@ -1,6 +1,6 @@
 from dataclasses import asdict, dataclass
 import re
-from typing import Any, Dict, List, Set
+from typing import List, Set
 from enum import Enum, auto
 
 
@@ -162,7 +162,7 @@ def extract_links_asdict(page_html: str, filter: str | None = None):
 #     wikipage = f.read()
 
 # row_datas = extract_links(wikipage)
-# row_dicts = extract_links_asdict(wikipage)
+# row_dicts = list(extract_links_asdict(wikipage))
 
 # print(row_datas)
 # print(row_dicts)
