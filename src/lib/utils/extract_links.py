@@ -66,13 +66,9 @@ plot_pattern = re.compile(r"<img.*?src=\".*?/Plot-(.*?)\..*?\".*?>")
 source_tv_original_pattern = re.compile(r".*?<b>TV Original</b>.*?")
 
 
-def extract_links(test_string: str, filter: str | None = None) -> List[RowData]:
-    filter_pattern: None | re.Pattern[str] = None
-    if filter:
-        filter_pattern = re.compile(fr"<td.*?>.*?{re.escape(filter)}.*?</td>", re.IGNORECASE)
-
-    tables_unformatted = re.findall(table_pattern, test_string)
-    print(f"found {len(tables_unformatted)} tables")
+def extract_tables(page_html: str, table_pattern: re.Pattern[str], filter_pattern: re.Pattern[str] | None):
+    tables_unformatted = re.findall(table_pattern, page_html)
+    # print(f"found {len(tables_unformatted)} tables")
     tables: List[Table] = []
     for unformatted in tables_unformatted:
         header = unformatted[0]
@@ -99,47 +95,57 @@ def extract_links(test_string: str, filter: str | None = None) -> List[RowData]:
                 end_ep = int(header_unformatted[0][2])
         tables.append(Table(is_season, is_airing, season, start_ep, end_ep, header, html_table))
 
-    # print("\n".join(map(str, tables)))
+    return tables
 
+
+def extract_row_datas(table: Table, row_data_pattern: re.Pattern[str], filter_pattern: re.Pattern[str] | None):
     row_datas: List[RowData] = []
 
+    rows = re.findall(row_pattern, table.html_table)
+    # print(f"{str(table)} - found {len(rows)} rows")
+    # print('\n'.join(rows))
+
+    for row in rows:
+        if filter_pattern and not re.search(filter_pattern, row):
+            continue
+        row_data_unformatted = re.findall(data_pattern, row)
+
+        index_jpn = row_data_unformatted[0].trim()
+        index_int = row_data_unformatted[1].trim()
+        episode_unformatted = re.findall(episode_pattern, row_data_unformatted[2])
+        if len(episode_unformatted) == 0:
+            episode = Episode('', row_data_unformatted[2], row_data_unformatted[2])
+        else:
+            episode_link = episode_unformatted[0][0].trim()
+            episode_title = episode_unformatted[0][1].trim()
+            episode_label = episode_unformatted[0][2].trim()
+            episode = Episode(episode_link, episode_title, episode_label)
+        date_jpn = row_data_unformatted[3].trim()
+        # date_jpn_datetime = time.strptime(date_jpn, "%B %d, %Y")
+        date_eng = row_data_unformatted[4].trim()
+        # date_eng_datetime = time.strptime(date_eng, "%B %d, %Y")
+        plot_unformatted = re.findall(plot_pattern, row_data_unformatted[5])
+        plots = set((map(lambda plot_string: Plot[plot_string.upper()], plot_unformatted)))
+        manga_source = row_data_unformatted[6].trim()
+        is_tv_original = True if re.match(source_tv_original_pattern, manga_source) else False
+        next_hint = row_data_unformatted[7].trim()
+
+        row_data = RowData(index_jpn, index_int, episode, date_jpn, date_eng, plots, manga_source, is_tv_original, next_hint)
+        row_datas.append(row_data)
+
+    return row_datas
+
+
+def extract_links(page_html: str, filter: str | None = None) -> List[RowData]:
+    filter_pattern: None | re.Pattern[str] = None
+    if filter:
+        filter_pattern = re.compile(fr"<td.*?>.*?{re.escape(filter)}.*?</td>", re.IGNORECASE)
+
+    tables: List[Table] = extract_tables(page_html, table_pattern, filter_pattern)
+
+    row_datas: List[RowData] = []
     for table in tables:
-
-        rows = re.findall(row_pattern, table.html_table)
-        print(f"{str(table)} - found {len(rows)} rows")
-        # print('\n'.join(rows))
-
-        for idx, row in enumerate(rows):
-            if filter_pattern and not re.search(filter_pattern, row):
-                continue
-            row_data_unformatted = re.findall(data_pattern, row)
-
-            index_jpn = row_data_unformatted[0].trim()
-            index_int = row_data_unformatted[1].trim()
-            episode_unformatted = re.findall(episode_pattern, row_data_unformatted[2])
-            if len(episode_unformatted) == 0:
-                episode = Episode('', row_data_unformatted[2], row_data_unformatted[2])
-            else:
-                episode_link = episode_unformatted[0][0].trim()
-                episode_title = episode_unformatted[0][1].trim()
-                episode_label = episode_unformatted[0][2].trim()
-                episode = Episode(episode_link, episode_title, episode_label)
-            date_jpn = row_data_unformatted[3].trim()
-            # date_jpn_datetime = time.strptime(date_jpn, "%B %d, %Y")
-            date_eng = row_data_unformatted[4].trim()
-            # date_eng_datetime = time.strptime(date_eng, "%B %d, %Y")
-            plot_unformatted = re.findall(plot_pattern, row_data_unformatted[5])
-            plots = set((map(lambda plot_string: Plot[plot_string.upper()], plot_unformatted)))
-            manga_source = row_data_unformatted[6].trim()
-            is_tv_original = True if re.match(source_tv_original_pattern, manga_source) else False
-            next_hint = row_data_unformatted[7].trim()
-
-            row_data = RowData(index_jpn, index_int, episode, date_jpn, date_eng, plots, manga_source, is_tv_original, next_hint)
-            row_datas.append(row_data)
-            print(f"row #{idx}: {row_data}")
-
-            # print(f"row {idx} has {len(row_data_unformatted)} datas")
-            # print('\t'.join(map(lambda s: s.encode('unicode_escape').decode("utf-8"), row_data_unformatted)))
+        row_datas.extend(extract_row_datas(table, data_pattern, filter_pattern))
 
     return row_datas
 
