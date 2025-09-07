@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from lib.utils.extract_links import extract_links_asdict
+from lib.utils.extract_bgm import BGMData
 
 app = FastAPI()
 
@@ -34,3 +35,7 @@ def get_list():
     with open('./Anime - Detective Conan Wiki.html', 'r') as f:
         page = f.read()
     return list(extract_links_asdict(page))
+
+@app.get("/bgm")
+def get_bgm():
+    return BGMData("https://www.detectiveconanworld.com/wiki/Mune_ga_Dokidoki")
