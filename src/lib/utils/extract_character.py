@@ -33,31 +33,15 @@ class Profile:
         self.actors = actors
         self.profile_picture_url = profile_picture_url
     
-    def to_dict(self):
-        return {
-            "name_eng": self.name_eng,
-            "surname_eng": self.surname_eng,
-            "name_jpn": self.name_jpn,
-            "surname_jpn": self.surname_jpn,
-            "ages": self.ages,
-            "gender": self.gender,
-            "height": self.height,
-            "weight": self.weight,
-            "birthday": self.birthday,
-            "occupations": self.occupations,
-            "status": self.status,
-            "actors": self.actors,
-            "profile_picture_url": self.profile_picture_url,
-        }
-    
 class Character:
     def __init__(
             self,
             profile: Profile,
             summary: str,
-            background: str,
-            appearance: str,
-            personality: str,
+            background: List[str],
+            appearance: List[str],
+            personality: List[str],
+            skills: List[str],
             image_urls: List[str]
         ):
         
@@ -66,29 +50,27 @@ class Character:
         self.background = background
         self.appearance = appearance
         self.personality = personality
+        self.skills = skills
         self.image_urls = image_urls
 
-    def to_dict(self):
-        return {
-            "profile": self.profile.to_dict(),
-            "summary": self.summary,
-            "background": self.background,
-            "appearance": self.appearance,
-            "personality": self.personality,
-            "image_urls": self.image_urls
-        }
+# Match Patterns - Common
+general_data_extraction_pattern = re.compile(r'([^>\n]+)(?=<|\n)', re.DOTALL)
 
-# Match Patterns
+# Match Patterns - Profiles
 profile_table_pattern = re.compile(r'<table class="infobox"[^>]*>.*?</table>', re.DOTALL)
 profile_table_rows_pattern = re.compile(r'<th[^>]*>(?P<row_header>[^<]+):\s*</th>\s*<td>(?:<^\n+>)?(?P<row_data>[^\n]+)\n</td>', re.DOTALL)
-general_data_extraction_pattern = re.compile(r'([^>\n]+)(?=<|\n)', re.DOTALL)
 status_extraction_pattern = re.compile(r'\s*([^>\n]+)(?=<|$)', re.DOTALL)
 actors_pattern = re.compile(r'\s*([^>\n]+)(?=<|\n|$)', re.DOTALL)
+
+# Match Patterns - Paragraphs
 container_div_pattern = re.compile(r'<div class="mw-parser-output">(.+)<\/div>\n<!--', re.DOTALL)
 summary_pattern = re.compile(r'<\/tbody><\/table>\n(?:<p>.+\n<\/p>)*')
-paragraph_with_header_pattern = re.compile(r'(?:<h2><span[^>]+>(?P<p_header>.+?)<\/span><\/h2>\n*)(?:(?:(?:<div class="thumb .+)*)*\n*(?:(?:<p>.+\s*<\/p>)*\n?))*')
-paragraph_html_extraction_pattern = re.compile(r'<p>(.+\s+)<\/p>')
-image_extraction_pattern = re.compile(r'<img.+src="(?P<url>.+?)"')
+h2_paragraph_pattern = re.compile(r'(?:<span class="mw-headline"[^>]+>(?P<h2_paragraphs_header>.+?)<\/span><\/h2>\n*).+?<h2>', re.DOTALL)
+generic_paragraph_pattern = re.compile(r'<\/h2>.+?<h3>', re.DOTALL)
+h3_paragraph_pattern = re.compile(r'(?:<span class="mw-headline"[^>]+>(?P<h3_paragraphs_header>.+?)<\/span><\/h3>\n*).+?(?:<h3>|<h2>)', re.DOTALL)
+first_h3_header_cleansing_pattern = re.compile(r'<h3><span class="mw-headline"[^>]*>(.+)')
+paragraph_text_extraction_pattern = re.compile(r'<p>(.+\s+)<\/p>')
+image_extraction_pattern = re.compile(r'<img.+src="(?P<url>\/wiki\/images\/thumb.+?)".+width="(?P<width>[^"]+?)" height="(?P<height>[^"]+?)"')
 
 # Split Patterns
 br_split_pattern = re.compile(r' <br /> |<br /> | <br />')
@@ -98,15 +80,33 @@ space_split_pattern = re.compile(r' ')
 # Substitute Patterns
 reference_substitute_pattern = re.compile(r'&#\d+;\d+&#\d+;|&#\d+;')
 language_help_substitute_pattern = re.compile(r'<span[^>]*>\?<\/span>')
+url_substitute_pattern = re.compile(r'(<a.+?>)|(<\/a>)')
 
 def read_file(file_path):
     with open(file_path, 'r', encoding="utf-8") as f:
         return f.read()
 
 def extract_image_urls(html_string):
-    image_urls = re.findall(image_extraction_pattern, html_string)
-    image_urls = ["https://www.detectiveconanworld.com"+url for url in image_urls]
-    return image_urls[:10]
+    image_urls = []
+    for match in re.finditer(image_extraction_pattern, html_string):
+        url = match.group("url")
+        width = int(match.group("width"))
+        height = int(match.group("height"))
+        if width <= 60 and height <= 60: continue
+        
+        image_urls.append("https://www.detectiveconanworld.com"+url)
+    
+    return image_urls
+
+def extract_paragraph_texts(paragraphs_html_str):
+    paragraphs = []
+    paragraph_texts = re.findall(paragraph_text_extraction_pattern, paragraphs_html_str)
+    for p_text in paragraph_texts:
+        if p_text:
+            paragraph_chunks = re.findall(general_data_extraction_pattern, p_text)
+            paragraph = "".join(paragraph_chunks)
+            paragraphs.append(paragraph)
+    return paragraphs
 
 def extract_character_profile_picture(html_string):
     return extract_image_urls(html_string)[0]
@@ -272,30 +272,51 @@ def extract_character_paragraphs(html_string):
     
     paragraphs_data = {
         "summary": [],
-        "background": [],
-        "appearance": [],
-        "personality": []
+        "background": {
+            "generic": [],
+        },
+        "appearance": {
+            "generic": [],
+        },
+        "personality": {
+            "generic": [],
+        },
+        "skills": {
+            "generic": [],
+        }
     }
 
     summary_html = re.findall(summary_pattern, container_div_cleansed)[0]
-    summary_paragraphs = re.findall(paragraph_html_extraction_pattern, summary_html)
-    summary_paragraphs = ["".join(re.findall(general_data_extraction_pattern, p)) for p in summary_paragraphs if p != ""]
+    summary_paragraphs = extract_paragraph_texts(summary_html)
     paragraphs_data["summary"] = summary_paragraphs
 
-    for match in re.finditer(paragraph_with_header_pattern, container_div_cleansed):
-        p_header = match.group("p_header")
-        p_html = match[0]
-        p_texts = re.findall(paragraph_html_extraction_pattern, p_html)
-        p_texts = ["".join(re.findall(general_data_extraction_pattern, p)) for p in p_texts if p != ""]
+    for h2_match in re.finditer(h2_paragraph_pattern, container_div_cleansed):
+        h2_paragraphs_header = h2_match.group("h2_paragraphs_header").lower()
+        if h2_paragraphs_header == "abilities": h2_paragraphs_header = "skills"
+        h2_paragraphs_html = h2_match[0]
         
-        if p_header == "Background":
-            paragraphs_data["background"] = p_texts
-        
-        elif p_header == "Appearance":
-            paragraphs_data["appearance"] = p_texts
+        if h2_paragraphs_header in paragraphs_data:
 
-        elif p_header == "Personality":
-            paragraphs_data["personality"] = p_texts
+            h3_exists = len(re.findall(h3_paragraph_pattern, h2_paragraphs_html)) > 0
+            
+            if h3_exists:
+                generic_paragraphs_raw = re.findall(generic_paragraph_pattern, h2_paragraphs_html)[0]
+                generic_paragraphs = extract_paragraph_texts(generic_paragraphs_raw)
+                paragraphs_data[h2_paragraphs_header]["generic"] = generic_paragraphs
+
+                for i, h3_match in enumerate(re.finditer(h3_paragraph_pattern, h2_paragraphs_html)):
+                    h3_paragraphs_header = h3_match.group("h3_paragraphs_header")
+                    if i == 0: h3_paragraphs_header = "".join(re.findall(first_h3_header_cleansing_pattern, h3_paragraphs_header))
+                    h3_paragraphs_header = re.sub(url_substitute_pattern, '', h3_paragraphs_header)
+                    
+                    h3_paragraphs_html = h3_match[0]
+                    h3_paragraphs = extract_paragraph_texts(h3_paragraphs_html)
+                    paragraphs_data[h2_paragraphs_header][h3_paragraphs_header] = h3_paragraphs
+            
+            else:
+                
+                h2_paragraphs = extract_paragraph_texts(h2_paragraphs_html)
+                paragraphs_data[h2_paragraphs_header]["generic"] = h2_paragraphs
     
     return paragraphs_data
 
@@ -306,6 +327,7 @@ def extract_character(n):
     profile = extract_character_profile(html_string)
     paragraphs_dict = extract_character_paragraphs(html_string)
     image_urls = extract_image_urls(html_string)
-    character = Character(profile=profile, **paragraphs_dict, image_urls=image_urls)
+    character = Character(profile=profile, **paragraphs_dict, image_urls=image_urls[1:10])
+    
     return character
     
