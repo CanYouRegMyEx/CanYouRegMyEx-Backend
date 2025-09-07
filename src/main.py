@@ -1,8 +1,10 @@
-from typing import Union
+from typing import Any, Union
 
 from fastapi import FastAPI
 from pydantic import BaseModel
-import lib.utils.extract_character
+
+from lib.utils.extract_links import extract_links_asdict
+from lib.utils.extract_character import extract_character, Profile, Character
 
 app = FastAPI()
 
@@ -19,15 +21,26 @@ def read_root():
 
 
 @app.get("/items/{item_id}")
-def read_item(item_id: int, q: Union[str, None] = None):
+def read_item(item_id: int, q: Union[str, None] = None) -> dict[str, Any]:
     return {"item_id": item_id, "q": q}
 
 
 @app.put("/items/{item_id}")
-def update_item(item_id: int, item: Item):
+def update_item(item_id: int, item: Item) -> dict[str, Any]:
     return {"item_name": item.name, "item_id": item_id}
 
-@app.get("/extract_character")
-def extract_character_page(character_profile_url):
-    res = lib.utils.extract_character.extract_character(character_profile_url)
-    return res
+@app.get("/list")
+def get_list():
+    page = ''
+    with open('./Anime - Detective Conan Wiki.html', 'r') as f:
+        page = f.read()
+    return list(extract_links_asdict(page))
+
+@app.get(
+    "/extract_character",
+    summary="Extract a character's information",
+    description="Extract information from the character's page on www.detectiveconanworld.com/wiki/ and return as formatted JSON",
+    response_model=Character,
+)
+def extract_character_page(character_page_url: str):
+    return extract_character(character_page_url)
