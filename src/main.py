@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from lib.utils.extract_links import extract_links_asdict
+from lib.utils.extract_gadget import GadgetData
 
 app = FastAPI()
 
@@ -34,3 +35,8 @@ def get_list():
     with open('./Anime - Detective Conan Wiki.html', 'r') as f:
         page = f.read()
     return list(extract_links_asdict(page))
+
+# test for gadget extractor
+@app.get("/gadget")
+def get_gadget():
+    return GadgetData("https://www.detectiveconanworld.com/wiki/Detective_Boys_Badge")
