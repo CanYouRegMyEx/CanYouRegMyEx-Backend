@@ -53,20 +53,19 @@ class Gadget:
             "name_eng": self.name_eng,
         }
 
-class Case:
+class CaseCard:
     def __init__(
             self,
-            situation: str,
             case_image_url: str,
             crime_type: str,
             location: str,
             victims_name: str,
             cause_of_death: str,
             suspects_name_list: list,
-            crime_description: str
-            )-> None:
+            crime_description: str,
+            culprit: str
+            ) -> None:
         
-        self.situation = situation
         self.case_image_url = case_image_url
         self.crime_type = crime_type
         self.location = location
@@ -74,17 +73,36 @@ class Case:
         self.cause_of_death = cause_of_death
         self.suspects_name_list = suspects_name_list
         self.crime_description = crime_description
-
+        self.culprit = culprit
 
     def to_dict(self):
         return {
-            "situation": self.situation,
             "case_image_url": self.case_image_url,
             "crime_type": self.crime_type,
             "location": self.location,
             "victims_name": self.victims_name,
+            "cause_of_death": self.cause_of_death,
             "suspects_name_list": self.suspects_name_list,
             "crime_description": self.crime_description,
+            "culprit": self.culprit,
+        }
+
+        
+class Case:
+    def __init__(
+            self,
+            situation: str,
+            case_card_list: list[CaseCard]
+
+            )-> None:
+        
+        self.situation = situation
+        self.case_card_list =  case_card_list
+
+    def to_dict(self):
+        return {
+            "situation": self.situation,
+            "case_card_list": [card.to_dict() for card in self.case_card_list],
         }
 
 class Episode:
@@ -150,7 +168,7 @@ info_header_pattern = re.compile(r'<b>(.*?)</b>', re.DOTALL)
 info_row_key_vlaue_pattern = re.compile(r'<tr>\s*<th>(?P<row_key>[^:]*):\s*..th>\s*<td>(?P<row_value>[^\n]+)', re.DOTALL)
 
 episode_number_pattern = re.compile(r'Episode\s+(\d+).*?Episode\s+(\d+)', re.DOTALL)
-episode_image_pattern = re.compile(r'src="([^"]+)"', re.DOTALL)
+src_image_pattern = re.compile(r'src="([^"]+)"', re.DOTALL)
 
 description_paragraph_pattern = re.compile(r'<p>\s*<i><b>.*\s</p>')
 description_pattern = re.compile(r'\s*[^>&*;]+(?=<)')
@@ -160,6 +178,19 @@ get_tag_a_pattern = re.compile(r'<a\s*href[^>]*>.*a>')
 href_name_src_character_pattern = re.compile(r'href="(?P<link_href>[^"]*)"\s*[^>]*><img\s*alt="(?P<name>[^"]*)"\ssrc="(?P<image_url>[^"]*)')
 
 side_characters_pattern = re.compile(r'<div\sstyle="overflow:hidden">\s*(.*?)<h3>', re.DOTALL)
+get_tbody_pattern = re.compile(r'<tbody>\s*(.*?)\s*</tbody>', re.DOTALL)
+get_tr_pattern = re.compile(r'<tr>\s*(.*?)</tr>', re.DOTALL)
+get_li_pattern = re.compile(r'<li>([^<]*)', re.DOTALL)
+
+crime_card_pattern = re.compile(r'<div\sclass="infobox-crime">\s*(?P<crime_type><div\s[^<]*</div>)\s*<div\sclass=[^<]*>\s*(?P<crime_image>.*)\s*<div\sclass="[^<]*(?P<crime_data>.*)')
+crime_location_pattern = re.compile(r'Location:</strong></span> <span>([^<]*)')
+crime_suspect_pattern = re.compile(r'Suspect:</strong></span>\s<span>([^<]*)')  #list
+crime_attack_type = re.compile(r'Attack\sTypes:</strong></span>\s<span>([^<]*)')
+crime_culpritc_pattern = re.compile(r'Culprit:</strong></span>\s<span>([^<]*)')
+crime_description = re.compile(r'class="crime-description">([^<]*)')
+crime_cause_of_death = re.compile(r'Cause of death:</strong></span>\s<span>([^<]*)')
+crime_victim_pattern_normal = re.compile(r'Victim:</strong></span>\s<span>([^<]*)')
+crime_victim_pattern_shit = re.compile(r'Victim:</strong></span>\s<span><a\shref="[^"]*"\stitle="[^"]*">([^<]*)')
 
 
 ####################################### pattern regx #######################################
@@ -169,7 +200,7 @@ def extract_table_infobox(html_table, episode_data: dict)-> dict:
     info_row_data_table = re.finditer(info_row_key_vlaue_pattern,html_table[0])
 
     episode_data["episode_number"], episode_data["international_episode_number"] = re.findall(episode_number_pattern ,info_row_header_table[0])[0]
-    episode_data["episode_image_url"] = BASE_URL + re.findall(episode_image_pattern, html_table[0])[0]
+    episode_data["episode_image_url"] = BASE_URL + re.findall(src_image_pattern, html_table[0])[0]
 
     for row in info_row_data_table:
         row_key = row.group('row_key')
@@ -247,6 +278,9 @@ def extract_main_characters(div_main_characters, episode_data: dict)-> dict:
 
     for tag_a_character in re.findall(get_tag_a_pattern, div_main_characters):
         # print(tag_a_character, "\n")   
+        if(tag_a_character == []):
+            return episode_data
+
         for char in re.finditer(href_name_src_character_pattern, tag_a_character):
             main_character_data = {
                 "character_url": BASE_URL + char.group("link_href"),
@@ -262,10 +296,61 @@ def extract_main_characters(div_main_characters, episode_data: dict)-> dict:
     return episode_data
 
 def extract_side_characters(div_side_characters, episode_data: dict)-> dict:
-    print(div_side_characters[0])
+
+    side_characters_list = []
+
+    for tbody in re.findall(get_tbody_pattern, div_side_characters[0]):
+
+        if(tbody == []):
+            return episode_data
+
+        tr = re.findall(get_tr_pattern, tbody)
+        header_table = tr[0]
+        info_table = tr[1]
+
+        character_data = {
+            "character_image_url": BASE_URL + re.findall(src_image_pattern, info_table)[0],
+            "name_eng": get_data_between_tag(header_table)[0].split('\n')[0],
+            "character_info": re.findall(get_li_pattern, info_table)
+        }
+
+        character = SideCharacter(**character_data)
+        side_characters_list.append(character)
+
+    episode_data["side_characters"] = side_characters_list
     
     return episode_data
 
+def extract_case(html_content, episode_data:dict )-> dict:
+
+    crime_data = {
+        "situation": "",
+        "case_card_list": list[CaseCard]
+    }
+    
+
+    for crime in re.finditer(crime_card_pattern, html_content):
+        crime_type = crime.group("crime_type")
+        crime_image = crime.group("crime_image")
+        crime_data = crime.group("crime_data")
+        
+        case_card_data = {
+            "case_image_url": BASE_URL + re.findall(src_image_pattern, crime_image)[0] ,
+            "crime_type": get_data_between_tag(crime_type)[0],
+            "location": re.findall(crime_location_pattern, crime_data)[0],
+            "victims_name": "",
+            "cause_of_death": re.findall(crime_cause_of_death, crime_data)[0],
+            "suspects_name_list": list[str],
+            "crime_description": re.findall(crime_description, crime_data)[0],
+            "culprit": re.findall(crime_culpritc_pattern, crime_data)[0]
+        }
+        
+
+        print(crime_data, "\n")
+    
+        # print(case_data, "\n")
+
+        
 
 def main_extract_episode():
 
@@ -280,7 +365,7 @@ def main_extract_episode():
         "airdate": "",
         "main_characters": list[MainCharacter],
         "side_characters": list[SideCharacter],
-        "cases": list[Case], 
+        "cases": Case, 
         "gadgets": list[Gadget]
     }
 
@@ -301,6 +386,9 @@ def main_extract_episode():
     div_side_characters = re.findall(side_characters_pattern, html_content)
     episode_data = extract_side_characters(div_side_characters, episode_data)
 
+    # Case 
+    episode_data = extract_case(html_content, episode_data)
+    
     # print(episode_data)
 
     
