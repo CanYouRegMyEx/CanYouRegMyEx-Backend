@@ -61,7 +61,7 @@ class CaseCard:
             location: str,
             victims_name: str,
             cause_of_death: str,
-            suspects_name_list: list,
+            suspects_name: str,
             crime_description: str,
             culprit: str
             ) -> None:
@@ -71,7 +71,7 @@ class CaseCard:
         self.location = location
         self.victims_name = victims_name
         self.cause_of_death = cause_of_death
-        self.suspects_name_list = suspects_name_list
+        self.suspects_name = suspects_name
         self.crime_description = crime_description
         self.culprit = culprit
 
@@ -82,7 +82,7 @@ class CaseCard:
             "location": self.location,
             "victims_name": self.victims_name,
             "cause_of_death": self.cause_of_death,
-            "suspects_name_list": self.suspects_name_list,
+            "suspects_name": self.suspects_name,
             "crime_description": self.crime_description,
             "culprit": self.culprit,
         }
@@ -91,7 +91,7 @@ class CaseCard:
 class Case:
     def __init__(
             self,
-            situation: str,
+            situation: list[str],
             case_card_list: list[CaseCard]
 
             )-> None:
@@ -184,7 +184,7 @@ get_li_pattern = re.compile(r'<li>([^<]*)', re.DOTALL)
 
 crime_card_pattern = re.compile(r'<div\sclass="infobox-crime">\s*(?P<crime_type><div\s[^<]*</div>)\s*<div\sclass=[^<]*>\s*(?P<crime_image>.*)\s*<div\sclass="[^<]*(?P<crime_data>.*)')
 crime_location_pattern = re.compile(r'Location:</strong></span> <span>([^<]*)')
-crime_suspect_pattern = re.compile(r'Suspect:</strong></span>\s<span>([^<]*)')  #list
+crime_suspect_pattern = re.compile(r'Suspect:</strong></span>\s<span>([^<]*)')  
 crime_attack_type = re.compile(r'Attack\sTypes:</strong></span>\s<span>([^<]*)')
 crime_culpritc_pattern = re.compile(r'Culprit:</strong></span>\s<span>([^<]*)')
 crime_description = re.compile(r'class="crime-description">([^<]*)')
@@ -192,6 +192,7 @@ crime_cause_of_death = re.compile(r'Cause of death:</strong></span>\s<span>([^<]
 crime_victim_pattern_normal = re.compile(r'Victim:</strong></span>\s<span>([^<]*)')
 crime_victim_pattern_shit = re.compile(r'Victim:</strong></span>\s<span><a\shref="[^"]*"\stitle="[^"]*">([^<]*)')
 
+situation_pettern = re.compile(r'id="Situation">Situation</span></h3>\s*<p>([^<]*)</p>')
 
 ####################################### pattern regx #######################################
 
@@ -323,12 +324,13 @@ def extract_side_characters(div_side_characters, episode_data: dict)-> dict:
 
 def extract_case(html_content, episode_data:dict )-> dict:
 
-    crime_data = {
-        "situation": "",
-        "case_card_list": list[CaseCard]
+    case_data = {
+        "situation": [],
+        "case_card_list": []
     }
     
-
+    case_data["situation"] = re.findall(situation_pettern, html_content)
+    
     for crime in re.finditer(crime_card_pattern, html_content):
         crime_type = crime.group("crime_type")
         crime_image = crime.group("crime_image")
@@ -337,21 +339,40 @@ def extract_case(html_content, episode_data:dict )-> dict:
         case_card_data = {
             "case_image_url": BASE_URL + re.findall(src_image_pattern, crime_image)[0] ,
             "crime_type": get_data_between_tag(crime_type)[0],
-            "location": re.findall(crime_location_pattern, crime_data)[0],
+            "location": "",
             "victims_name": "",
-            "cause_of_death": re.findall(crime_cause_of_death, crime_data)[0],
-            "suspects_name_list": list[str],
-            "crime_description": re.findall(crime_description, crime_data)[0],
-            "culprit": re.findall(crime_culpritc_pattern, crime_data)[0]
+            "cause_of_death": "",
+            "suspects_name": "",
+            "crime_description": "",
+            "culprit": ""
         }
         
+        case_card_data["location"] = location[0] if (location := re.findall(crime_location_pattern, crime_data)) else ""
+        case_card_data["cause_of_death"] = cause_of_death[0] if (cause_of_death := re.findall(crime_cause_of_death, crime_data)) else ""
+        case_card_data["crime_description"] = crime_des[0] if (crime_des := re.findall(crime_description, crime_data)) else ""
+        case_card_data["culprit"] = culprit[0] if (culprit := re.findall(crime_culpritc_pattern, crime_data)) else ""
+        case_card_data["suspects_name"] = suspect[0] if (suspect := re.findall(crime_suspect_pattern, crime_data)) else "" 
 
-        print(crime_data, "\n")
-    
-        # print(case_data, "\n")
-
+        victim = re.findall(crime_victim_pattern_normal, crime_data)
+        if victim == [''] or victim == []:
+            victim = re.findall(crime_victim_pattern_shit, crime_data)
         
+        if victim == []:
+            victim = [""]
 
+        case_card_data["victims_name"] = victim[0]
+
+
+        case_card = CaseCard(**case_card_data)
+        case_data["case_card_list"].append(case_card)
+        
+    episode_data["cases"] = Case(**case_data)
+   
+    
+    return episode_data
+
+
+    
 def main_extract_episode():
 
     episode_data = {
@@ -371,7 +392,7 @@ def main_extract_episode():
 
 
     # for test
-    html_content = read_file("episode.html")
+    html_content = read_file("./CanYouRegMyEx-Backend/src/lib/utils/episode.html")
     # print(html_content)
 
     info_table = re.findall(info_table_pattern, html_content)
