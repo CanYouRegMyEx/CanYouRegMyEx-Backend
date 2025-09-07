@@ -38,5 +38,4 @@ def get_list():
 
 @app.get("/extract_character")
 def extract_character_page(character_profile_url):
-    res = lib.utils.extract_character.extract_character(character_profile_url)
-    return res
+    return lib.utils.extract_character.extract_character(character_profile_url)

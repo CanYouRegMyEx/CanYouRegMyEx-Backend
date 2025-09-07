@@ -1,5 +1,6 @@
 import re
 from typing import List, Dict
+import lib.utils.crawler
 
 class Profile:
     def __init__(
@@ -81,10 +82,6 @@ space_split_pattern = re.compile(r' ')
 reference_substitute_pattern = re.compile(r'&#\d+;\d+&#\d+;|&#\d+;')
 language_help_substitute_pattern = re.compile(r'<span[^>]*>\?<\/span>')
 url_substitute_pattern = re.compile(r'(<a.+?>)|(<\/a>)')
-
-def read_file(file_path):
-    with open(file_path, 'r', encoding="utf-8") as f:
-        return f.read()
 
 def extract_image_urls(html_string):
     image_urls = []
@@ -321,13 +318,13 @@ def extract_character_paragraphs(html_string):
     return paragraphs_data
 
 # Weird ass parameter until someone go fetches the page for me
-def extract_character(n):
-    html_string = read_file(f"../char_test{n}.html")
+def extract_character(url):
+    html_string = lib.utils.crawler.crawl(url)
 
     profile = extract_character_profile(html_string)
     paragraphs_dict = extract_character_paragraphs(html_string)
     image_urls = extract_image_urls(html_string)
     character = Character(profile=profile, **paragraphs_dict, image_urls=image_urls[1:10])
-    
+
     return character
     
