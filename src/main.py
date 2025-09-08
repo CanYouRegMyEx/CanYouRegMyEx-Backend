@@ -3,14 +3,14 @@ from typing import Any, Union
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from lib.utils.extract_bgm import BGMData
-from routers import episode_list, episode
+from routers import episode_list, episode, bgm
 from lib.utils.extract_character import extract_character, Character
 
 app = FastAPI()
 
 app.include_router(episode_list.router)
 app.include_router(episode.router)
+app.include_router(bgm.router)
 
 class Item(BaseModel):
     name: str
@@ -32,9 +32,6 @@ def read_item(item_id: int, q: Union[str, None] = None) -> dict[str, Any]:
 def update_item(item_id: int, item: Item) -> dict[str, Any]:
     return {"item_name": item.name, "item_id": item_id}
 
-@app.get("/bgm")
-def get_bgm():
-    return BGMData("https://www.detectiveconanworld.com/wiki/Mune_ga_Dokidoki")
 @app.get(
     "/extract_character",
     summary="Extract a character's information",
