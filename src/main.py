@@ -3,14 +3,12 @@ from typing import Any, Union
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from routers import episode_copy, episode_list
+from routers import episode_list
 from lib.utils.extract_character import extract_character, Character
 
 app = FastAPI()
 
 app.include_router(episode_list.router)
-app.include_router(episode_copy.router)
-
 
 class Item(BaseModel):
     name: str
