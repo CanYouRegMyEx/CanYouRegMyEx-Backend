@@ -1,16 +1,12 @@
 from typing import Annotated
 from fastapi import APIRouter, Query
-from lib.utils.episode import FilterParams, extract_episodes
+from lib.utils.extract_episode import main_extract_episode
 
 
 router = APIRouter(prefix='/episode', tags=['episode'])
 
 
 @router.get('/')
-async def get_episodes(filter_params: Annotated[FilterParams, Query()]):
-    wikipage = ''
+async def extract_episode_page(episode_url: str):
 
-    with open('./Anime - Detective Conan Wiki.html', 'r') as f:
-        wikipage = f.read()
-
-    return extract_episodes(wikipage, filter_params)
+    return main_extract_episode(episode_url)
