@@ -124,11 +124,11 @@ class Episode:
             episode_number: str,
             international_episode_number: str,
             episode_image_url: str,
-            title_eng: str,
+            title_eng: list[str],
             title_jpn: str,
             description: str,
             season: str,
-            airdate: str,
+            airdate: list[str],
             main_characters: list[MainCharacter],
             side_characters: list[SideCharacter],
             case: Case,
@@ -228,8 +228,8 @@ row_data_td_a_pattern = re.compile(r'<a\shref="([^"]*)[^>]*>([^<]*)')
 ## shit part for ep 1 ##
 
 main_character_shit_pattern = re.compile(r'Introduced<\/span></h\d>\s*<div\sstyle="overflow:hidden">\s*(.*?)<h3>', re.DOTALL)
- 
 
+br_split_pattern = re.compile(r' <br /> |<br /> | <br />|<br />') 
 
 ####################################### pattern regx #######################################
 
@@ -271,12 +271,12 @@ def extract_table_infobox(html_table, episode_data: dict)-> dict:
             pass
         elif row_key == "English title":
             # ex. English title:The Book Without Pages
-            episode_data["title_eng"] = row_value
+            episode_data["title_eng"] = re.split(br_split_pattern, row_value)
             pass
         elif row_key == "Dubbed episode":
             pass
         elif row_key == "English airdate":
-           episode_data["airdate"] = row_value           
+           episode_data["airdate"] = re.split(br_split_pattern, row_value)        
 
         # elif row_key == "Cast":
         #     pass
@@ -490,10 +490,10 @@ def main_extract_episode(url: str)-> dict:
         "international_episode_number": "",
         "episode_image_url": "",
         "title_jpn": "",
-        "title_eng": "",
+        "title_eng": [],
         "description": "",
         "season": "",
-        "airdate": "",
+        "airdate": [],
         "main_characters": list[MainCharacter],
         "side_characters": list[SideCharacter],
         "case": Case, 
