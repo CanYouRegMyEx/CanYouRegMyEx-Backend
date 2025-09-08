@@ -1,7 +1,7 @@
 from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query
 from lib.utils.crawler import crawl
-from lib.utils.episode import FilterParams, extract_episodes
+from lib.utils.extract_episode_list import FilterParams, extract_episodes
 
 
 EPISODES_PAGE_URL = 'https://www.detectiveconanworld.com/wiki/Anime'
