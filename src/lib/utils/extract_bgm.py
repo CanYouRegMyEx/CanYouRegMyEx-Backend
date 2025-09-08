@@ -15,7 +15,7 @@ class BGMData:
         html = response.read().decode("UTF-8")
         self.metadata = BGMMetadata().extract(html)
         self.description = BGMDescription().extract(html)
-        self.gallery = None
+        self.gallery = BGMImageGallery().extract(html)
 
 class BGMMetadata:
     romanji_title_pattern = re.compile(r'<h1 id="firstHeading" class="firstHeading" lang="en">(.*?)</h1>', re.DOTALL)
@@ -92,11 +92,29 @@ class BGMDescription:
         return self
 
 class BGMImageGallery:
+    image_gallery_section_pattern = re.compile(r'<h2><span class="mw-headline" id="Gallery">Gallery</span></h2>\n?(.*?)<h2>.*?<span.*?>.*?</span>.*?</h2>', re.DOTALL)
+    cd_tv_other_divider_pattern = re.compile(r'(?:<h3>(.*?)<h3>(.*))|(.*)', re.DOTALL)
+    image_pattern = re.compile(r'<img.*?src="(.*?)".*?>.*?<div.*?class="gallerytext".*?>(.*?)</div>', re.DOTALL)
+    data_pattern = re.compile(r'(?:>|^)([^<>\n]+)(?:<|$)', re.DOTALL)
+
     def __init__(self):
-        self.images = []
+        self.cd = []
+        self.tv = []
 
     def extract(self, html):
-        pass
+        gallery_section = re.search(BGMImageGallery.image_gallery_section_pattern, html)
+        cd_tv_other_section = re.search(BGMImageGallery.cd_tv_other_divider_pattern, gallery_section.group(1))
+        cd_section, tv_section, other_section = cd_tv_other_section.group(1, 2, 3)
+        print(re.findall(BGMImageGallery.image_pattern, cd_section))
+        cd_section_image = [(image_url, "".join(re.findall(BGMImageGallery.data_pattern, caption))) for image_url, caption in re.findall(BGMImageGallery.image_pattern, cd_section)]
+        tv_section_image = [(image_url, "".join(re.findall(BGMImageGallery.data_pattern, caption))) for image_url, caption in re.findall(BGMImageGallery.image_pattern, tv_section)]
+        if other_section != None:
+            other_section_image = [(image_url, "".join(re.findall(BGMImageGallery.data_pattern, caption))) for image_url, caption in re.findall(BGMImageGallery.image_pattern, other_section)]
+        else:
+            other_section_image = []
+        self.cd = [BGMImage(*image) for image in cd_section_image + other_section_image]
+        self.tv = [BGMImage(*image) for image in tv_section_image]
+        return self
 
 class BGMImage:
     hostname = None
@@ -112,3 +130,5 @@ class BGMCD:
         self.romanji_title = romanji_title
         self.translated_title = translated_title
         self.length = length
+
+bgm = BGMData("https://www.detectiveconanworld.com/wiki/Mune_ga_Dokidoki")
