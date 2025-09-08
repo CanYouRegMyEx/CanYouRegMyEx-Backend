@@ -55,7 +55,7 @@ class Episode:
     next_hint: str
 
     def __str__(self) -> str:
-        return f'{self.season} | {self.index_jpn} | {self.index_int} | {self.episode.label} | {self.date_jpn} | {self.date_jpn} | {self.date_eng} | {self.plots} | {self.manga_source} | {self.is_tv_original} | {self.next_hint}'
+        return f'{self.season} | {self.index_jpn} | {self.index_int} | {self.episode.label} | {self.date_jpn} | {self.date_jpn} | {self.date_eng} | {list(map(str, self.plots))} | {self.manga_source} | {self.is_tv_original} | {self.next_hint}'
 
     def get_dict(self):
         return asdict(self)
@@ -81,6 +81,16 @@ data_pattern = re.compile(r"<td.*?>(.*?)</td>\s*?", re.DOTALL)
 episode_pattern = re.compile(r"<a\s*?href=\"(.*?)\"\s*?title=\"(.*?)\">(.*?)</a>")
 plot_pattern = re.compile(r"<img.*?src=\".*?/Plot-(.*?)\..*?\".*?>")
 source_tv_original_pattern = re.compile(r".*?<b>TV Original</b>.*?")
+# generic_html_tag_pattern = re.compile(r"</?(.*?)(?: |>)")
+# generic_html_tag_pattern = re.compile(r"<(.*?)>")
+generic_html_tag_open_pattern = re.compile(r"<([^/].*?)>")
+generic_html_tag_close_pattern = re.compile(r"<(/.*?)>")
+
+
+def remove_html_tags(string: str) -> str:
+    string = re.sub(generic_html_tag_open_pattern, '', string)
+    string = re.sub(generic_html_tag_close_pattern, ' ', string)
+    return string.strip()
 
 
 def extract_tables(page_html: str, table_pattern: re.Pattern[str], table_header_pattern: re.Pattern[str], table_header_extractor_pattern: re.Pattern[str], table_content_pattern: re.Pattern[str], filter_patterns: List[re.Pattern[str]]):
@@ -142,8 +152,8 @@ def extract_row_datas(table: Table, row_data_pattern: re.Pattern[str], filter_pa
         row_data_unformatted = re.findall(row_data_pattern, row)
 
         season = table.season
-        index_jpn = row_data_unformatted[0].strip()
-        index_int = row_data_unformatted[1].strip()
+        index_jpn = remove_html_tags(row_data_unformatted[0])
+        index_int = remove_html_tags(row_data_unformatted[1])
         episode_unformatted = re.findall(episode_pattern, row_data_unformatted[2])
         if len(episode_unformatted) == 0:
             episode_meta = EpisodeMeta('', row_data_unformatted[2], row_data_unformatted[2])
@@ -152,15 +162,15 @@ def extract_row_datas(table: Table, row_data_pattern: re.Pattern[str], filter_pa
             episode_meta_title = episode_unformatted[0][1].strip()
             episode_meta_label = episode_unformatted[0][2].strip()
             episode_meta = EpisodeMeta(episode_meta_link, episode_meta_title, episode_meta_label)
-        date_jpn = row_data_unformatted[3].strip()
+        date_jpn = remove_html_tags(row_data_unformatted[3])
         # date_jpn_datetime = time.strptime(date_jpn, "%B %d, %Y")
-        date_eng = row_data_unformatted[4].strip()
+        date_eng = remove_html_tags(row_data_unformatted[4])
         # date_eng_datetime = time.strptime(date_eng, "%B %d, %Y")
         plot_unformatted = re.findall(plot_pattern, row_data_unformatted[5])
         plots = set((map(lambda plot_string: Plot[plot_string.upper()], plot_unformatted)))
-        manga_source = row_data_unformatted[6].strip()
+        manga_source = remove_html_tags(row_data_unformatted[6])
         is_tv_original = True if re.match(source_tv_original_pattern, manga_source) else False
-        next_hint = row_data_unformatted[7].strip()
+        next_hint = remove_html_tags(row_data_unformatted[7])
 
         episode = Episode(season, index_jpn, index_int, episode_meta, date_jpn, date_eng, plots, manga_source, is_tv_original, next_hint)
         episodes.append(episode)
@@ -209,8 +219,8 @@ def extract_episodes_asdict(page_html: str, filter_params: FilterParams):
 # with open('/home/phuwit/Programming/CanYouRegMyEx-Backend/Anime - Detective Conan Wiki.html', 'r') as f:
 #     wikipage = f.read()
 
-# row_datas = extract_episodes(wikipage, FilterParams(filter=[], plot=[], season=[1], limit=100, offset=0))
-# # row_dicts = list(extract_episodes_asdict(wikipage, FilterParams(filter=['shinkansen'], plot=[Plot.CHAR], season=[1], limit=100, offset=0)))
+# episode_datas = extract_episodes(wikipage, FilterParams(filter=[], plot=[], season=[1], limit=100, offset=0))
+# # episode_dicts = list(extract_episodes_asdict(wikipage, FilterParams(filter=['shinkansen'], plot=[Plot.CHAR], season=[1], limit=100, offset=0)))
 
-# print('\n\n'.join(map(str, row_datas)))
-# # print(row_dicts)
+# print('\n\n'.join(map(str, episode_datas)))
+# # print(episode_dicts)
