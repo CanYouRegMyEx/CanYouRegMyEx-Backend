@@ -238,7 +238,12 @@ def extract_table_infobox(html_table, episode_data: dict)-> dict:
     info_row_data_table = re.finditer(info_row_key_vlaue_pattern,html_table[0])
 
     episode_data["episode_number"], episode_data["international_episode_number"] = re.findall(episode_number_pattern ,info_row_header_table[0])[0]
-    episode_data["episode_image_url"] = BASE_URL + re.findall(src_image_pattern, html_table[0])[0]
+
+    image = re.findall(src_image_pattern, html_table[0])
+    if image == []:
+        episode_data["episode_image_url"] = ""
+    else:
+        episode_data["episode_image_url"] = BASE_URL + re.findall(src_image_pattern, html_table[0])[0]
 
     for row in info_row_data_table:
         row_key = row.group('row_key')
@@ -349,10 +354,18 @@ def extract_side_characters(div_side_characters, episode_data: dict)-> dict:
             info_table = tr[1]
 
             character_data = {
-                "character_image_url": BASE_URL + re.findall(src_image_pattern, info_table)[0],
+                "character_image_url": "",
                 "name_eng": get_data_between_tag(header_table)[0].split('\n')[0],
                 "character_info": re.findall(get_li_pattern, info_table)
             }
+
+            image = re.findall(src_image_pattern, info_table)
+
+            if image == []:
+                character_data["character_image_url"]= ""
+            else :
+                character_data["character_image_url"] = BASE_URL + image[0]
+            
 
             character = SideCharacter(**character_data)
             side_characters_list.append(character)
@@ -403,7 +416,7 @@ def extract_case(html_content, episode_data:dict )-> dict:
         crime_data = crime.group("crime_data")
         
         case_card_data = {
-            "case_image_url": BASE_URL + re.findall(src_image_pattern, crime_image)[0] ,
+            "case_image_url": "",
             "crime_type": get_data_between_tag(crime_type)[0],
             "location": "",
             "victims_name": "",
@@ -412,6 +425,13 @@ def extract_case(html_content, episode_data:dict )-> dict:
             "crime_description": "",
             "culprit": ""
         }
+
+        image = re.findall(src_image_pattern, crime_image)
+
+        if image == []:
+            case_card_data["case_image_url"] = ""
+        else:
+            case_card_data["case_image_url"] = BASE_URL + image[0]
         
         case_card_data["location"] = location[0] if (location := re.findall(crime_location_pattern, crime_data)) else ""
         case_card_data["cause_of_death"] = cause_of_death[0] if (cause_of_death := re.findall(crime_cause_of_death, crime_data)) else ""
@@ -447,8 +467,9 @@ def extract_resolution(p_data, episode_data:dict) -> dict:
 
     for text in text_resolution:
 
-        if (not isContainNewline(text) or len(text) > 20):
+        if (not isContainNewline(text) or len(text) > 6):
             result_text_resolution += text
+            result_text_resolution += " "
     
     episode_data["resolution"] = result_text_resolution
 
@@ -457,6 +478,9 @@ def extract_resolution(p_data, episode_data:dict) -> dict:
 def extract_bgm(table, episode_data: dict)-> dict:
 
     bgm_list = []
+
+    if table == []:
+        return episode_data
 
     tr_list = re.findall(tr_section_pattern, table[0])
     for tr in tr_list[1::]:
@@ -496,10 +520,10 @@ def main_extract_episode(url: str)-> dict:
         "airdate": [],
         "main_characters": list[MainCharacter],
         "side_characters": list[SideCharacter],
-        "case": Case, 
+        "case": None, 
         "gadgets": [],
         "resolution" : "",
-        "bgm_list" : list[dict]
+        "bgm_list" : []
     }
 
 
