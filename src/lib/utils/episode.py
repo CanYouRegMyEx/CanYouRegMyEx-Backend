@@ -2,7 +2,6 @@ from dataclasses import asdict, dataclass
 import re
 from typing import List, Set, Tuple
 from enum import Enum
-
 from pydantic import BaseModel, Field
 
 
@@ -18,6 +17,16 @@ class Plot(Enum):
     DB = "db"
     DC = "dc"
     MKO = "mko"
+
+
+class FilterParams(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    filter: List[str] = Field([], max_length=10)
+    plot: List[Plot] = Field([], max_length=10)
+    season: List[int] = Field([], max_length=10)
+    limit: int = Field(100, gt=0, le=100)
+    offset: int = Field(0, ge=0)
 
 
 @dataclass
@@ -70,16 +79,6 @@ class Episode:
 
     def get_dict(self):
         return asdict(self)
-
-
-class FilterParams(BaseModel):
-    model_config = {"extra": "forbid"}
-
-    filter: List[str] = Field([], max_length=10)
-    plot: List[Plot] = Field([], max_length=10)
-    season: List[int] = Field([], max_length=10)
-    limit: int = Field(100, gt=0, le=10000)
-    offset: int = Field(0, ge=0)
 
 
 # table_pattern = re.compile(r"<h3><span.*?>(.*?)</span></h3>.*?<tbody.*?><tr>\s*?<th.+?</th></tr>(.*?)</tbody>", re.DOTALL)
@@ -245,13 +244,13 @@ def extract_episodes_asdict(page_html: str, filter_params: FilterParams):
     return map(asdict, row_datas)
 
 
-wikipage = ''
+# wikipage = ''
 
-with open('/home/phuwit/Programming/CanYouRegMyEx-Backend/Anime - Detective Conan Wiki.html', 'r') as f:
-    wikipage = f.read()
+# with open('/home/phuwit/Programming/CanYouRegMyEx-Backend/Anime - Detective Conan Wiki.html', 'r') as f:
+#     wikipage = f.read()
 
-episode_datas = extract_episodes(wikipage, FilterParams(filter=[], plot=[], season=[], limit=100, offset=200))
-# episode_dicts = list(extract_episodes_asdict(wikipage, FilterParams(filter=['shinkansen'], plot=[Plot.CHAR], season=[1], limit=100, offset=0)))
+# episode_datas = extract_episodes(wikipage, FilterParams(filter=[], plot=[], season=[], limit=100, offset=200))
+# # episode_dicts = list(extract_episodes_asdict(wikipage, FilterParams(filter=['shinkansen'], plot=[Plot.CHAR], season=[1], limit=100, offset=0)))
 
-print('\n\n'.join(map(str, episode_datas)))
-# print(episode_dicts)
+# print('\n\n'.join(map(str, episode_datas)))
+# # print(episode_dicts)
