@@ -3,11 +3,15 @@ from typing import Any, Union
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from lib.utils.extract_links import extract_links_asdict
+
 from lib.utils.extract_character import extract_character, Profile, Character
 from lib.utils.extract_episode import main_extract_episode
+from routers import episode
+from lib.utils.extract_character import extract_character, Character
 
 app = FastAPI()
+
+app.include_router(episode.router)
 
 
 class Item(BaseModel):
@@ -30,13 +34,6 @@ def read_item(item_id: int, q: Union[str, None] = None) -> dict[str, Any]:
 def update_item(item_id: int, item: Item) -> dict[str, Any]:
     return {"item_name": item.name, "item_id": item_id}
 
-@app.get("/list")
-def get_list():
-    page = ''
-    with open('./Anime - Detective Conan Wiki.html', 'r') as f:
-        page = f.read()
-    return list(extract_links_asdict(page))
-
 @app.get(
     "/extract_character",
     summary="Extract a character's information",
@@ -46,8 +43,4 @@ def get_list():
 def extract_character_page(character_page_url: str):
     return extract_character(character_page_url)
 
-
-@app.get("/extract_episode")
-def extract_episode_page(episode_url: str) -> dict:
-    return main_extract_episode(episode_url)
 
