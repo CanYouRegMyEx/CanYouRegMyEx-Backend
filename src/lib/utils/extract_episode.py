@@ -87,6 +87,18 @@ class CaseCard:
             "culprit": self.culprit,
         }
 
+class BGMListing:
+    def __init__(
+            self,
+            bgm_list: list[dict]
+            )-> None:
+        self.bgm_list = bgm_list
+
+    def to_dict(self):
+        return {
+            "bgm_list": self.bgm_list
+        }
+
         
 class Case:
     def __init__(
@@ -118,8 +130,10 @@ class Episode:
             airdate: str,
             main_characters: list[MainCharacter],
             side_characters: list[SideCharacter],
-            case: list[Case],
+            case: Case,
             gadgets: list[Gadget],
+            resolution: str,
+            bgm_list: list[dict]
     ) -> None:
         
         self.episode_number = episode_number
@@ -132,8 +146,10 @@ class Episode:
         self.airdate = airdate
         self.main_characters = main_characters
         self.side_characters = side_characters
-        self.cases = case.to_dict()
+        self.case = case
         self.gadgets = gadgets
+        self.resolution = resolution
+        self.bgm_list = bgm_list
 
     def to_dict(self):
         return {
@@ -145,11 +161,16 @@ class Episode:
             "description": self.description,
             "season": self.season,
             "airdate": self.airdate,
-            "main_characters": self.main_characters,
-            "side_characters": self.side_characters,
-            "cases": self.cases,
-            "gadgets": self.gadgets,
+            "main_characters": [mc.to_dict() for mc in self.main_characters],
+            "side_characters": [sc.to_dict() for sc in self.side_characters],
+            "case": self.case.to_dict(),
+            "gadgets": [g.to_dict() for g in self.gadgets],
+            "resolution" : self.resolution,
+            "bgm_list" : self.bgm_list
         }
+
+def isContainNewline(text):
+    return '\n' in text or text == ""
     
 def read_file(file_path):
     with open(file_path, 'r', encoding="utf-8") as f:
@@ -161,6 +182,8 @@ def get_data_between_tag(str: str):
 BASE_URL = "https://www.detectiveconanworld.com"
 
 ####################################### pattern regx #######################################
+
+remove_tag_pattern = re.compile(r'<.*?>')
 
 info_table_pattern = re.compile(r'<table class="infobox"[^>]*>.*?</table>', re.DOTALL)
 
@@ -193,6 +216,13 @@ crime_victim_pattern_normal = re.compile(r'Victim:</strong></span>\s<span>([^<]*
 crime_victim_pattern_shit = re.compile(r'Victim:</strong></span>\s<span><a\shref="[^"]*"\stitle="[^"]*">([^<]*)')
 
 situation_pettern = re.compile(r'id="Situation">Situation</span></h3>\s*<p>([^<]*)</p>')
+
+resolution_pattern = re.compile(r'<div style="padding:[^"]*">((?:(?!<h2>).)*)', re.DOTALL)
+
+bgm_table_pattern = re.compile(r'<div style="overflow:auto;">\s<table[^>]*>\s((?:(?!</table>).)*)' , re.DOTALL)
+tr_section_pattern = re.compile(r'<tr>.*?<\/tr>', re.DOTALL)
+row_data_td_pattern = re.compile(r'<td\sstyle="[^"]+">([^<]*)')
+row_data_td_a_pattern = re.compile(r'<a\shref="([^"]*)[^>]*>([^<]*)')
 
 ####################################### pattern regx #######################################
 
@@ -366,14 +396,54 @@ def extract_case(html_content, episode_data:dict )-> dict:
         case_card = CaseCard(**case_card_data)
         case_data["case_card_list"].append(case_card)
         
-    episode_data["cases"] = Case(**case_data)
+    episode_data["case"] = Case(**case_data)
    
     
     return episode_data
 
+def extract_resolution(p_data, episode_data:dict) -> dict:
 
+    # print(p_data[0])
+    sub_case_card = re.sub(crime_card_pattern, '', p_data[0])
+    text_resolution = re.split(remove_tag_pattern, sub_case_card)
     
-def main_extract_episode():
+    result_text_resolution = ""
+
+    for text in text_resolution:
+
+        if (not isContainNewline(text) or len(text) > 20):
+            result_text_resolution += text
+    
+    episode_data["resolution"] = result_text_resolution
+
+    return episode_data
+
+def extract_bgm(table, episode_data: dict)-> dict:
+
+    bgm_list = []
+
+    tr_list = re.findall(tr_section_pattern, table[0])
+    for tr in tr_list[1::]:
+        row_data_tr = re.findall(row_data_td_pattern, tr)
+        row_data_tr_a = re.findall(row_data_td_a_pattern, tr)
+
+        OST_url , OST_name = row_data_tr_a[0]
+
+        bgm_dict = {
+            "Song Title": row_data_tr[1],
+            "Romaji" : row_data_tr[2],
+            "Translation": row_data_tr[3],
+            "OST_name": OST_name,
+            "OST_url": BASE_URL + OST_url
+        }
+
+        bgm_list.append(bgm_dict)
+
+    episode_data["bgm_list"] = bgm_list
+
+    return episode_data
+
+def main_extract_episode()-> dict:
 
     episode_data = {
         "episode_number": "",
@@ -386,13 +456,15 @@ def main_extract_episode():
         "airdate": "",
         "main_characters": list[MainCharacter],
         "side_characters": list[SideCharacter],
-        "cases": Case, 
-        "gadgets": list[Gadget]
+        "case": Case, 
+        "gadgets": [],
+        "resolution" : "",
+        "bgm_list" : list[dict]
     }
 
 
     # for test
-    html_content = read_file("./CanYouRegMyEx-Backend/src/lib/utils/episode.html")
+    html_content = read_file("src/lib/utils/episode.html")
     # print(html_content)
 
     info_table = re.findall(info_table_pattern, html_content)
@@ -410,9 +482,17 @@ def main_extract_episode():
     # Case 
     episode_data = extract_case(html_content, episode_data)
     
+    p_resolution = re.findall(resolution_pattern, html_content)
+    episode_data = extract_resolution(p_resolution, episode_data)
+
+    table_bgm_listing = re.findall(bgm_table_pattern, html_content)
+    episode_data = extract_bgm(table_bgm_listing, episode_data)
+
     # print(episode_data)
 
+    episode = Episode(**episode_data)
     
+    return episode.to_dict()
 
     
 
