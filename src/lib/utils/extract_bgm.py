@@ -1,5 +1,6 @@
 import re
 import urllib.request
+import urllib.parse
 
 class BGMData:
     def __init__(self, target_url):
@@ -9,6 +10,7 @@ class BGMData:
         self.extract(target_url)
 
     def extract(self, target_url):
+        BGMImage.hostname = urllib.parse.urlparse(target_url).netloc
         response = urllib.request.urlopen(target_url)
         html = response.read().decode("UTF-8")
         self.metadata = BGMMetadata().extract(html)
@@ -97,8 +99,10 @@ class BGMImageGallery:
         pass
 
 class BGMImage:
+    hostname = None
+
     def __init__(self, image_url, caption=""):
-        self.image_url = image_url
+        self.image_url = BGMImage.hostname + image_url
         self.caption = caption
 
 class BGMCD:
