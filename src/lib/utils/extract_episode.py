@@ -177,8 +177,11 @@ def read_file(file_path):
     with open(file_path, 'r', encoding="utf-8") as f:
         return f.read()
 
-def get_data_between_tag(str: str):
-    return re.findall(r'\s*[^>]+(?=<)', str)
+def get_data_between_tag(text: str):
+    return re.findall(r'\s*[^>]+(?=<)', text)
+
+def sub_tag(text: str):
+    return re.sub(r'<[^>]+?>', "", text)
 
 BASE_URL = "https://www.detectiveconanworld.com"
 
@@ -252,7 +255,9 @@ def extract_table_infobox(html_table, episode_data: dict)-> dict:
         if row_key == "Japanese title":
             # row_vlaue = 図書館殺人事件 <br /> (Toshokan Satsujin Jiken)
             title = re.split(r' <br /> ', row_value)
-            episode_data["title_jpn"] = ''.join(title) 
+            result_title = ''.join(title) 
+
+            episode_data["title_jpn"] = sub_tag(result_title)
 
         elif row_key == "Original airdate":
             # ex. Original airdate:March 3, 1997 <br /> March 15, 2014 <b>(Remastered version)</b>
@@ -306,10 +311,13 @@ def extract_table_infobox(html_table, episode_data: dict)-> dict:
     
 def extract_episode_description(description_p, episode_data: dict)-> dict:
     description_p = description_p[0]
+    description_p = re.sub(r'&#\d+?;', "'", description_p)
+
     description = ''
     for text in re.findall(description_pattern, description_p):
         if(len(text) > 3):
-            description += text+' '
+            description += text + ' '
+    
     episode_data["description"] = description
 
     return episode_data
