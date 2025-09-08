@@ -1,4 +1,5 @@
 import re
+from lib.utils.crawler import *
 
 class MainCharacter:
     def __init__(
@@ -190,7 +191,7 @@ info_table_pattern = re.compile(r'<table class="infobox"[^>]*>.*?</table>', re.D
 info_header_pattern = re.compile(r'<b>(.*?)</b>', re.DOTALL)
 info_row_key_vlaue_pattern = re.compile(r'<tr>\s*<th>(?P<row_key>[^:]*):\s*..th>\s*<td>(?P<row_value>[^\n]+)', re.DOTALL)
 
-episode_number_pattern = re.compile(r'Episode\s+(\d+).*?Episode\s+(\d+)', re.DOTALL)
+episode_number_pattern = re.compile(r'Episode\s+(\d+).*?Episode\s+([^)]*)', re.DOTALL)
 src_image_pattern = re.compile(r'src="([^"]+)"', re.DOTALL)
 
 description_paragraph_pattern = re.compile(r'<p>\s*<i><b>.*\s</p>')
@@ -200,7 +201,7 @@ main_characters_pattern = re.compile(r'<div\s+style="display:flex[^"]*".*?>\s(.*
 get_tag_a_pattern = re.compile(r'<a\s*href[^>]*>.*a>') 
 href_name_src_character_pattern = re.compile(r'href="(?P<link_href>[^"]*)"\s*[^>]*><img\s*alt="(?P<name>[^"]*)"\ssrc="(?P<image_url>[^"]*)')
 
-side_characters_pattern = re.compile(r'<div\sstyle="overflow:hidden">\s*(.*?)<h3>', re.DOTALL)
+side_characters_pattern = re.compile(r'People<\/span></h\d>\s*<div\sstyle="overflow:hidden">\s*(.*?)<h3>', re.DOTALL)
 get_tbody_pattern = re.compile(r'<tbody>\s*(.*?)\s*</tbody>', re.DOTALL)
 get_tr_pattern = re.compile(r'<tr>\s*(.*?)</tr>', re.DOTALL)
 get_li_pattern = re.compile(r'<li>([^<]*)', re.DOTALL)
@@ -223,6 +224,12 @@ bgm_table_pattern = re.compile(r'<div style="overflow:auto;">\s<table[^>]*>\s((?
 tr_section_pattern = re.compile(r'<tr>.*?<\/tr>', re.DOTALL)
 row_data_td_pattern = re.compile(r'<td\sstyle="[^"]+">([^<]*)')
 row_data_td_a_pattern = re.compile(r'<a\shref="([^"]*)[^>]*>([^<]*)')
+
+## shit part for ep 1 ##
+
+main_character_shit_pattern = re.compile(r'Introduced<\/span></h\d>\s*<div\sstyle="overflow:hidden">\s*(.*?)<h3>', re.DOTALL)
+ 
+
 
 ####################################### pattern regx #######################################
 
@@ -330,26 +337,55 @@ def extract_side_characters(div_side_characters, episode_data: dict)-> dict:
 
     side_characters_list = []
 
-    for tbody in re.findall(get_tbody_pattern, div_side_characters[0]):
+    for side_char in div_side_characters:
 
-        if(tbody == []):
-            return episode_data
+        for tbody in re.findall(get_tbody_pattern, side_char):
 
-        tr = re.findall(get_tr_pattern, tbody)
-        header_table = tr[0]
-        info_table = tr[1]
+            if(tbody == []):
+                return episode_data
 
-        character_data = {
-            "character_image_url": BASE_URL + re.findall(src_image_pattern, info_table)[0],
-            "name_eng": get_data_between_tag(header_table)[0].split('\n')[0],
-            "character_info": re.findall(get_li_pattern, info_table)
-        }
+            tr = re.findall(get_tr_pattern, tbody)
+            header_table = tr[0]
+            info_table = tr[1]
 
-        character = SideCharacter(**character_data)
-        side_characters_list.append(character)
+            character_data = {
+                "character_image_url": BASE_URL + re.findall(src_image_pattern, info_table)[0],
+                "name_eng": get_data_between_tag(header_table)[0].split('\n')[0],
+                "character_info": re.findall(get_li_pattern, info_table)
+            }
 
-    episode_data["side_characters"] = side_characters_list
+            character = SideCharacter(**character_data)
+            side_characters_list.append(character)
+
+        episode_data["side_characters"] = side_characters_list
     
+    return episode_data
+
+def extract_shit_main_characters(div_main_characters, episode_data:dict)-> dict:
+    side_characters_list = []
+
+    for side_char in div_main_characters:
+
+        for tbody in re.findall(get_tbody_pattern, side_char):
+
+            if(tbody == []):
+                return episode_data
+
+            tr = re.findall(get_tr_pattern, tbody)
+            header_table = tr[0]
+            info_table = tr[1]
+
+            character_data = {
+                "character_image_url": BASE_URL + re.findall(src_image_pattern, info_table)[0],
+                "name_eng": get_data_between_tag(header_table)[0].split('\n')[0],
+                "character_info": re.findall(get_li_pattern, info_table)
+            }
+
+            character = SideCharacter(**character_data)
+            side_characters_list.append(character)
+
+        episode_data["main_characters"] = side_characters_list
+
     return episode_data
 
 def extract_case(html_content, episode_data:dict )-> dict:
@@ -427,6 +463,9 @@ def extract_bgm(table, episode_data: dict)-> dict:
         row_data_tr = re.findall(row_data_td_pattern, tr)
         row_data_tr_a = re.findall(row_data_td_a_pattern, tr)
 
+        if row_data_tr_a == []:
+            continue
+
         OST_url , OST_name = row_data_tr_a[0]
 
         bgm_dict = {
@@ -443,8 +482,9 @@ def extract_bgm(table, episode_data: dict)-> dict:
 
     return episode_data
 
-def main_extract_episode()-> dict:
+def main_extract_episode(url: str)-> dict:
 
+    print("URL: " + url)
     episode_data = {
         "episode_number": "",
         "international_episode_number": "",
@@ -464,8 +504,9 @@ def main_extract_episode()-> dict:
 
 
     # for test
-    html_content = read_file("src/lib/utils/episode.html")
-    # print(html_content)
+    
+    # html_content = crawl(url)
+    html_content = crawl(url)
 
     info_table = re.findall(info_table_pattern, html_content)
     episode_data = extract_table_infobox(info_table, episode_data)
@@ -473,8 +514,13 @@ def main_extract_episode()-> dict:
     paragraph_description = re.findall(description_paragraph_pattern, html_content)
     episode_data = extract_episode_description(paragraph_description, episode_data )
 
-    div_main_characters = re.findall(main_characters_pattern, html_content)
-    episode_data = extract_main_characters(div_main_characters, episode_data)
+    try:
+        div_main_characters = re.findall(main_characters_pattern, html_content)
+        episode_data = extract_main_characters(div_main_characters, episode_data)
+
+    except:
+        div_main_characters = re.findall(main_character_shit_pattern, html_content)
+        episode_data = extract_shit_main_characters(div_main_characters, episode_data)
     
     div_side_characters = re.findall(side_characters_pattern, html_content)
     episode_data = extract_side_characters(div_side_characters, episode_data)
@@ -488,13 +534,12 @@ def main_extract_episode()-> dict:
     table_bgm_listing = re.findall(bgm_table_pattern, html_content)
     episode_data = extract_bgm(table_bgm_listing, episode_data)
 
-    # print(episode_data)
-
     episode = Episode(**episode_data)
     
+    # print(episode.to_dict())
     return episode.to_dict()
 
     
 
 
-main_extract_episode()
+# main_extract_episode("https://www.detectiveconanworld.com/wiki/Moonlight_Sonata_Murder_Case")

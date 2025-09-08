@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from lib.utils.extract_links import extract_links_asdict
 from lib.utils.extract_character import extract_character, Profile, Character
+from lib.utils.extract_episode import main_extract_episode
 
 app = FastAPI()
 
@@ -44,3 +45,9 @@ def get_list():
 )
 def extract_character_page(character_page_url: str):
     return extract_character(character_page_url)
+
+
+@app.get("/extract_episode")
+def extract_episode_page(episode_url: str) -> dict:
+    return main_extract_episode(episode_url)
+
