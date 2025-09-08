@@ -3,7 +3,6 @@ from typing import Any, Union
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from lib.utils.episode import extract_episodes_asdict
 from routers import episode
 
 app = FastAPI()
@@ -30,10 +29,3 @@ def read_item(item_id: int, q: Union[str, None] = None) -> dict[str, Any]:
 @app.put("/items/{item_id}")
 def update_item(item_id: int, item: Item) -> dict[str, Any]:
     return {"item_name": item.name, "item_id": item_id}
-
-@app.get("/list")
-def get_list():
-    page = ''
-    with open('./Anime - Detective Conan Wiki.html', 'r') as f:
-        page = f.read()
-    return list(extract_episodes_asdict(page))
