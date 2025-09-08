@@ -5,7 +5,8 @@ from lib.utils.filter_pipeline import *
 from pydantic import BaseModel
 
 class Profile(BaseModel):
-    names_eng: List[str]
+    name_eng: str
+    names_eng_localised: List[str]
     name_jpn: str
     ages: List[str]
     gender: str
@@ -31,6 +32,7 @@ general_data_extraction_pattern = re.compile(r'([^>\n]+)(?=<|\n|$)', re.DOTALL)
 
 # Match Patterns - Profiles
 profile_table_pattern = re.compile(r'<table class="infobox"[^>]*>.*?</table>', re.DOTALL)
+h1_character_name_pattern = re.compile(r'<h1 id="firstHeading" class="firstHeading"[^>]*?>(.+?)<\/h1>')
 profile_table_rows_pattern = re.compile(r'<th[^>]*?>(?P<row_header>.+):\n<\/th>\n<td>(?P<row_data>.+)\n<\/td>')
 profile_row_data_extraction_pattern = re.compile(r'^([^><]+?)<|>([^><]+?)<|>([^><]+?)$')
 
@@ -93,12 +95,14 @@ def extract_paragraph_texts(paragraphs_html_str):
     return paragraphs
 
 def extract_character_profile_picture(html_string):
-    return extract_image_urls(html_string)[0]
+    image_urls = extract_image_urls(html_string)
+    return extract_image_urls(html_string)[0] if image_urls else ""
 
 def extract_character_profile(html_string):
 
     profile_data = {
-        "names_eng": [],
+        "name_eng": "",
+        "names_eng_localised": [],
         "name_jpn": "",
         "ages": [],
         "gender": "",
@@ -117,8 +121,8 @@ def extract_character_profile(html_string):
 
     profile_table = re.findall(profile_table_pattern, html_string)[0]
     profile_table_cleansed = tag_cleanse_filter_pipeline.filter(profile_table)
-    print(profile_table)
-
+    
+    profile_data["name_eng"] = re.findall(h1_character_name_pattern, html_string)[0]
     profile_data["profile_picture_url"] = extract_character_profile_picture(html_string)
 
     for match in re.finditer(profile_table_rows_pattern, profile_table_cleansed):
@@ -133,7 +137,7 @@ def extract_character_profile(html_string):
 
         elif row_header == "English name":
             names_eng = re.split(br_split_pattern, row_data)
-            profile_data["names_eng"] = names_eng
+            profile_data["names_eng_localised"] = names_eng
 
         elif row_header == "Age":
             ages = re.split(br_split_pattern, row_data)
