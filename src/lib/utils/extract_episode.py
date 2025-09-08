@@ -1,175 +1,57 @@
 import re
 from lib.utils.crawler import *
+from pydantic import BaseModel
+from typing import List
 
-class MainCharacter:
-    def __init__(
-            self,
-            character_url: str,
-            character_image_url: str,
-            name_eng: str,
-            ):
-        
-        self.character_url = character_url
-        self.character_image_url = character_image_url
-        self.name_eng = name_eng
-        
-    def to_dict(self):
-        return {
-            "character_url": self.character_url,
-            "character_image_url": self.character_image_url,
-            "name_eng": self.name_eng,
-        }
-
-class SideCharacter:
-    def __init__(
-            self,
-            character_image_url: str,
-            name_eng: str,  
-            character_info: list,
-            ) -> None:
-        self.character_image_url = character_image_url
-        self.name_eng = name_eng
-        self.character_info = character_info
-
+class MainCharacter(BaseModel):
+    character_url: str
+    character_image_url: str
+    name_eng: str
     
-    def to_dict(self):
-        return {
-            "character_image_url": self.character_image_url,
-            "name_eng": self.name_eng,
-            "character_info": self.character_info,
-        }
+class SideCharacter(BaseModel):
+    character_image_url: str
+    name_eng: str
+    character_info: list
+   
+class Gadget(BaseModel):
+    gadget_url: str
+    name_eng: str
 
-class Gadget:
-    def __init__(
-            self,
-            gadget_url: str,
-            name_eng: str,
-            )-> None:
-        self.gadget_url = gadget_url
-        self.name_eng = name_eng
-    
-    def to_dict(self):
-        return {
-            "gadget_url": self.gadget_url,
-            "name_eng": self.name_eng,
-        }
+class CaseCard(BaseModel):
+    case_image_url: str
+    crime_type: str
+    location: str
+    victims_name: str
+    cause_of_death: str
+    suspects_name: str
+    crime_description: str
+    culprit: str
 
-class CaseCard:
-    def __init__(
-            self,
-            case_image_url: str,
-            crime_type: str,
-            location: str,
-            victims_name: str,
-            cause_of_death: str,
-            suspects_name: str,
-            crime_description: str,
-            culprit: str
-            ) -> None:
-        
-        self.case_image_url = case_image_url
-        self.crime_type = crime_type
-        self.location = location
-        self.victims_name = victims_name
-        self.cause_of_death = cause_of_death
-        self.suspects_name = suspects_name
-        self.crime_description = crime_description
-        self.culprit = culprit
-
-    def to_dict(self):
-        return {
-            "case_image_url": self.case_image_url,
-            "crime_type": self.crime_type,
-            "location": self.location,
-            "victims_name": self.victims_name,
-            "cause_of_death": self.cause_of_death,
-            "suspects_name": self.suspects_name,
-            "crime_description": self.crime_description,
-            "culprit": self.culprit,
-        }
-
-class BGMListing:
-    def __init__(
-            self,
-            bgm_list: list[dict]
-            )-> None:
-        self.bgm_list = bgm_list
-
-    def to_dict(self):
-        return {
-            "bgm_list": self.bgm_list
-        }
+class BGMListing(BaseModel): 
+    bgm_list: list[dict]
 
         
-class Case:
-    def __init__(
-            self,
-            situation: list[str],
-            case_card_list: list[CaseCard]
+class Case(BaseModel):
+    situation: list[str]    
+    case_card_list: list[CaseCard]
 
-            )-> None:
-        
-        self.situation = situation
-        self.case_card_list =  case_card_list
-
-    def to_dict(self):
-        return {
-            "situation": self.situation,
-            "case_card_list": [card.to_dict() for card in self.case_card_list],
-        }
-
-class Episode:
-    def __init__(
-            self,
-            episode_number: str,
-            international_episode_number: str,
-            episode_image_url: str,
-            title_eng: list[str],
-            title_jpn: str,
-            description: str,
-            season: str,
-            airdate: list[str],
-            main_characters: list[MainCharacter],
-            side_characters: list[SideCharacter],
-            case: Case,
-            gadgets: list[Gadget],
-            resolution: str,
-            bgm_list: list[dict]
-    ) -> None:
-        
-        self.episode_number = episode_number
-        self.international_episode_number = international_episode_number
-        self.episode_image_url = episode_image_url
-        self.title_eng = title_eng
-        self.title_jpn = title_jpn
-        self.description = description
-        self.season = season
-        self.airdate = airdate
-        self.main_characters = main_characters
-        self.side_characters = side_characters
-        self.case = case
-        self.gadgets = gadgets
-        self.resolution = resolution
-        self.bgm_list = bgm_list
-
-    def to_dict(self):
-        return {
-            "episode_number": self.episode_number,
-            "international_episode_number": self.international_episode_number,
-            "episode_image_url": self.episode_image_url,
-            "title_jpn": self.title_jpn,
-            "title_eng": self.title_eng,
-            "description": self.description,
-            "season": self.season,
-            "airdate": self.airdate,
-            "main_characters": [mc.to_dict() for mc in self.main_characters],
-            "side_characters": [sc.to_dict() for sc in self.side_characters],
-            "case": self.case.to_dict(),
-            "gadgets": [g.to_dict() for g in self.gadgets],
-            "resolution" : self.resolution,
-            "bgm_list" : self.bgm_list
-        }
-
+       
+class Episode(BaseModel):
+    episode_number: str
+    international_episode_number: str
+    episode_image_url: str
+    title_eng: list[str]
+    title_jpn: str
+    description: str
+    season: str
+    airdate: list[str]
+    main_characters: list[MainCharacter]
+    side_characters: list[SideCharacter]
+    case: Case
+    gadgets: list[Gadget]
+    resolution: str
+    bgm_list: list[dict]
+   
 def isContainNewline(text):
     return '\n' in text or text == ""
     
@@ -514,7 +396,7 @@ def extract_bgm(table, episode_data: dict)-> dict:
 
     return episode_data
 
-def main_extract_episode(url: str)-> dict:
+def main_extract_episode(url: str):
 
     print("URL: " + url)
     episode_data = {
@@ -568,8 +450,7 @@ def main_extract_episode(url: str)-> dict:
 
     episode = Episode(**episode_data)
     
-    # print(episode.to_dict())
-    return episode.to_dict()
+    return episode
 
     
 
