@@ -3,14 +3,14 @@ from typing import Any, Union
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from lib.utils.extract_gadget import GadgetData
-from routers import episode_list, episode
+from routers import episode_list, episode, gadget
 from lib.utils.extract_character import extract_character, Character
 
 app = FastAPI()
 
 app.include_router(episode_list.router)
 app.include_router(episode.router)
+app.include_router(gadget.router)
 
 class Item(BaseModel):
     name: str
@@ -31,11 +31,6 @@ def read_item(item_id: int, q: Union[str, None] = None) -> dict[str, Any]:
 @app.put("/items/{item_id}")
 def update_item(item_id: int, item: Item) -> dict[str, Any]:
     return {"item_name": item.name, "item_id": item_id}
-
-# test for gadget extractor
-@app.get("/gadget")
-def get_gadget():
-    return GadgetData("https://www.detectiveconanworld.com/wiki/Detective_Boys_Badge")
 
 @app.get(
     "/extract_character",
