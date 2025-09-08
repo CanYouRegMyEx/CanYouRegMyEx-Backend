@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from lib.utils.extract_links import extract_links_asdict
+from lib.utils.extract_character import extract_character, Profile, Character
 
 app = FastAPI()
 
@@ -34,3 +35,12 @@ def get_list():
     with open('./Anime - Detective Conan Wiki.html', 'r') as f:
         page = f.read()
     return list(extract_links_asdict(page))
+
+@app.get(
+    "/extract_character",
+    summary="Extract a character's information",
+    description="Extract information from the character's page on www.detectiveconanworld.com/wiki/ and return as formatted JSON",
+    response_model=Character,
+)
+def extract_character_page(character_page_url: str):
+    return extract_character(character_page_url)
