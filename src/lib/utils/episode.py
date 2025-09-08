@@ -1,11 +1,11 @@
 from dataclasses import asdict, dataclass
 import re
 from typing import List, Set
-from enum import Enum, auto
+from enum import Enum
 
 
 @dataclass
-class Episode:
+class EpisodeMeta:
     link: str
     title: str
     label: str
@@ -40,10 +40,11 @@ class Plot(Enum):
 
 
 @dataclass
-class RowData:
+class Episode:
+    season: int
     index_jpn: str
     index_int: str
-    episode: Episode
+    episode: EpisodeMeta
     date_jpn: str
     date_eng: str
     plots: Set[Plot]
@@ -100,7 +101,7 @@ def extract_tables(page_html: str, table_pattern: re.Pattern[str], filter_patter
 
 
 def extract_row_datas(table: Table, row_data_pattern: re.Pattern[str], filter_pattern: re.Pattern[str] | None):
-    row_datas: List[RowData] = []
+    episodes: List[Episode] = []
 
     rows = re.findall(row_pattern, table.html_table)
     # print(f"{str(table)} - found {len(rows)} rows")
@@ -109,18 +110,19 @@ def extract_row_datas(table: Table, row_data_pattern: re.Pattern[str], filter_pa
     for row in rows:
         if filter_pattern and not re.search(filter_pattern, row):
             continue
-        row_data_unformatted = re.findall(data_pattern, row)
+        row_data_unformatted = re.findall(row_data_pattern, row)
 
+        season = table.season
         index_jpn = row_data_unformatted[0].strip()
         index_int = row_data_unformatted[1].strip()
         episode_unformatted = re.findall(episode_pattern, row_data_unformatted[2])
         if len(episode_unformatted) == 0:
-            episode = Episode('', row_data_unformatted[2], row_data_unformatted[2])
+            episode_meta = EpisodeMeta('', row_data_unformatted[2], row_data_unformatted[2])
         else:
-            episode_link = episode_unformatted[0][0].strip()
-            episode_title = episode_unformatted[0][1].strip()
-            episode_label = episode_unformatted[0][2].strip()
-            episode = Episode(episode_link, episode_title, episode_label)
+            episode_meta_link = episode_unformatted[0][0].strip()
+            episode_meta_title = episode_unformatted[0][1].strip()
+            episode_meta_label = episode_unformatted[0][2].strip()
+            episode_meta = EpisodeMeta(episode_meta_link, episode_meta_title, episode_meta_label)
         date_jpn = row_data_unformatted[3].strip()
         # date_jpn_datetime = time.strptime(date_jpn, "%B %d, %Y")
         date_eng = row_data_unformatted[4].strip()
@@ -131,28 +133,28 @@ def extract_row_datas(table: Table, row_data_pattern: re.Pattern[str], filter_pa
         is_tv_original = True if re.match(source_tv_original_pattern, manga_source) else False
         next_hint = row_data_unformatted[7].strip()
 
-        row_data = RowData(index_jpn, index_int, episode, date_jpn, date_eng, plots, manga_source, is_tv_original, next_hint)
-        row_datas.append(row_data)
+        episode = Episode(season, index_jpn, index_int, episode_meta, date_jpn, date_eng, plots, manga_source, is_tv_original, next_hint)
+        episodes.append(episode)
 
-    return row_datas
+    return episodes
 
 
-def extract_links(page_html: str, filter: str | None = None) -> List[RowData]:
+def extract_episodes(page_html: str, filter: str | None = None) -> List[Episode]:
     filter_pattern: None | re.Pattern[str] = None
     if filter:
         filter_pattern = re.compile(fr"<td.*?>.*?{re.escape(filter)}.*?</td>", re.IGNORECASE)
 
     tables: List[Table] = extract_tables(page_html, table_pattern, filter_pattern)
 
-    row_datas: List[RowData] = []
+    episodes: List[Episode] = []
     for table in tables:
-        row_datas.extend(extract_row_datas(table, data_pattern, filter_pattern))
+        episodes.extend(extract_row_datas(table, data_pattern, filter_pattern))
 
-    return row_datas
+    return episodes
 
 
-def extract_links_asdict(page_html: str, filter: str | None = None):
-    row_datas = extract_links(page_html, filter)
+def extract_episodes_asdict(page_html: str, filter: str | None = None):
+    row_datas = extract_episodes(page_html, filter)
     return map(asdict, row_datas)
 
 

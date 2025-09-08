@@ -3,7 +3,7 @@ from typing import Any, Union
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from lib.utils.extract_links import extract_links_asdict
+from lib.utils.episode import extract_episodes_asdict
 from routers import episode
 
 app = FastAPI()
@@ -36,4 +36,4 @@ def get_list():
     page = ''
     with open('./Anime - Detective Conan Wiki.html', 'r') as f:
         page = f.read()
-    return list(extract_links_asdict(page))
+    return list(extract_episodes_asdict(page))

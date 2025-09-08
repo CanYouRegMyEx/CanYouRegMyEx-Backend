@@ -1,7 +1,7 @@
 from typing import Annotated, List
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
-from lib.utils.extract_links import Plot
+from lib.utils.episode import Plot
 
 
 class FilterParams(BaseModel):
