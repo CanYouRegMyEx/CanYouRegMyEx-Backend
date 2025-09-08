@@ -26,17 +26,17 @@ class Table:
 
 
 class Plot(Enum):
-    NEW = auto()
-    CHAR = auto()
-    ROMANCE = auto()
-    BO = auto()
-    FBI = auto()
-    MK = auto()
-    PAST = auto()
-    HH = auto()
-    DB = auto()
-    DC = auto()
-    MKO = auto()
+    NEW = "new"
+    CHAR = "char"
+    ROMANCE = "romance"
+    BO = "bo"
+    FBI = "fbi"
+    MK = "mk"
+    PAST = "past"
+    HH = "hh"
+    DB = "db"
+    DC = "dc"
+    MKO = "mko"
 
 
 @dataclass

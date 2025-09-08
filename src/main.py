@@ -4,8 +4,11 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from lib.utils.extract_links import extract_links_asdict
+from routers import episode
 
 app = FastAPI()
+
+app.include_router(episode.router)
 
 
 class Item(BaseModel):
