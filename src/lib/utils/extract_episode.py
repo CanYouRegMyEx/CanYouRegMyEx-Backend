@@ -7,6 +7,7 @@ class MainCharacter(BaseModel):
     character_url: str
     character_image_url: str
     name_eng: str
+    character_info: list[str]
     
 class SideCharacter(BaseModel):
     character_image_url: str
@@ -116,6 +117,8 @@ main_character_shit_pattern = re.compile(r'Introduced<\/span></h\d>\s*<div\sstyl
 
 br_split_pattern = re.compile(r' <br /> |<br /> | <br />|<br />') 
 
+link_name_image_main_char_pattern = re.compile(r'<a\shref="(?P<link>[^"]+)"\stitle="(?P<name>[^"]+)"><img\salt="[^"]*"\ssrc="(?P<image_url>[^"]+)')
+
 ####################################### pattern regx #######################################
 
 def extract_table_infobox(html_table, episode_data: dict)-> dict:
@@ -218,7 +221,8 @@ def extract_main_characters(div_main_characters, episode_data: dict)-> dict:
             main_character_data = {
                 "character_url": BASE_URL + char.group("link_href"),
                 "character_image_url": BASE_URL + char.group("image_url"),
-                "name_eng":  char.group("name")
+                "name_eng":  char.group("name"),
+                "character_info": []
             }
 
         character = MainCharacter(**main_character_data)
@@ -265,29 +269,32 @@ def extract_side_characters(div_side_characters, episode_data: dict)-> dict:
     return episode_data
 
 def extract_shit_main_characters(div_main_characters, episode_data:dict)-> dict:
-    side_characters_list = []
+    
+    main_characters_list = []
 
-    for side_char in div_main_characters:
+    # print(div_main_characters[0])
+    tbody = re.findall(get_tbody_pattern,div_main_characters[0])
 
-        for tbody in re.findall(get_tbody_pattern, side_char):
-
-            if(tbody == []):
-                return episode_data
-
-            tr = re.findall(get_tr_pattern, tbody)
-            header_table = tr[0]
-            info_table = tr[1]
-
-            character_data = {
-                "character_image_url": BASE_URL + re.findall(src_image_pattern, info_table)[0],
-                "name_eng": get_data_between_tag(header_table)[0].split('\n')[0],
-                "character_info": re.findall(get_li_pattern, info_table)
+    if (tbody == []):
+        return episode_data
+    
+    for tr in tbody:
+        tr_data = re.findall(re.compile(r'<tr>.*?</tr>', re.DOTALL) , tr)[1]
+        for data in re.finditer(link_name_image_main_char_pattern, tr_data):
+            main_character_data = {
+                "character_url": BASE_URL + data.group("link"),
+                "character_image_url": BASE_URL + data.group("image_url"),
+                "name_eng":  data.group("name"),
+                "character_info": []
             }
+        
+        li = re.findall(re.compile(r'<ul>(.+)<\/ul>', re.DOTALL), tr_data)
+        main_character_data["character_info"] = re.findall(r'>(.*?)<', li[0])
 
-            character = SideCharacter(**character_data)
-            side_characters_list.append(character)
+        character = MainCharacter(**main_character_data)
+        main_characters_list.append(character)
 
-        episode_data["main_characters"] = side_characters_list
+    episode_data["main_characters"] = main_characters_list
 
     return episode_data
 
