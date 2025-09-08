@@ -1,9 +1,23 @@
 from dataclasses import asdict, dataclass
 import re
-from typing import List, Set
+from typing import List, Set, Tuple
 from enum import Enum
 
 from pydantic import BaseModel, Field
+
+
+class Plot(Enum):
+    NEW = "new"
+    CHAR = "char"
+    ROMANCE = "romance"
+    BO = "bo"
+    FBI = "fbi"
+    MK = "mk"
+    PAST = "past"
+    HH = "hh"
+    DB = "db"
+    DC = "dc"
+    MKO = "mko"
 
 
 @dataclass
@@ -23,22 +37,19 @@ class Table:
     header: str
     html_table: str
 
+    def __len__(self) -> int:
+        return self.end_ep - self.start_ep + 1
+
     def __str__(self) -> str:
         return f"Table: S{self.season} ({self.start_ep}-{self.end_ep}) [{self.header}]"
 
 
-class Plot(Enum):
-    NEW = "new"
-    CHAR = "char"
-    ROMANCE = "romance"
-    BO = "bo"
-    FBI = "fbi"
-    MK = "mk"
-    PAST = "past"
-    HH = "hh"
-    DB = "db"
-    DC = "dc"
-    MKO = "mko"
+@dataclass
+class _TableExtraction:
+    table: Table
+    do_slice: bool = False
+    slice_from: int = 0
+    slice_to: int = 0
 
 
 @dataclass
@@ -67,7 +78,7 @@ class FilterParams(BaseModel):
     filter: List[str] = Field([], max_length=10)
     plot: List[Plot] = Field([], max_length=10)
     season: List[int] = Field([], max_length=10)
-    limit: int = Field(100, gt=0, le=100)
+    limit: int = Field(100, gt=0, le=10000)
     offset: int = Field(0, ge=0)
 
 
@@ -93,10 +104,14 @@ def remove_html_tags(string: str) -> str:
     return string.strip()
 
 
-def extract_tables(page_html: str, table_pattern: re.Pattern[str], table_header_pattern: re.Pattern[str], table_header_extractor_pattern: re.Pattern[str], table_content_pattern: re.Pattern[str], filter_patterns: List[re.Pattern[str]]):
+def extract_tables(page_html: str, filter_patterns: List[re.Pattern[str]], slice_index: Tuple[int, int]) -> List[_TableExtraction]:
+    slice_from = slice_index[0]
+    slice_to = slice_index[1]
+
     tables_unformatted = re.findall(table_pattern, page_html)
-    # print(f"found {len(tables_unformatted)} tables")
-    tables: List[Table] = []
+
+    table_extractions: List[_TableExtraction] = []
+
     for unformatted in tables_unformatted:
         filter_violation = False
         for pattern in filter_patterns:
@@ -112,7 +127,7 @@ def extract_tables(page_html: str, table_pattern: re.Pattern[str], table_header_
         content_str =  content_match.group(1).strip() if content_match else ""
 
         is_season = bool(header_match)
-        is_airing = False
+        is_airing = True
 
         header_extracted = re.findall(table_header_extractor_pattern, header_str)
         if len(header_extracted) == 0:
@@ -123,22 +138,36 @@ def extract_tables(page_html: str, table_pattern: re.Pattern[str], table_header_
         else:
             season = int(header_extracted[0][0])
             start_ep = int(header_extracted[0][1])
-            end_ep = 0
+
             # for ongoing season, end_ep will be `present`
-            if header_extracted[0][2] != 'present':
+            if header_extracted[0][2] == 'present':
+                end_ep = start_ep + 100000
+            else:
                 is_airing = False
                 end_ep = int(header_extracted[0][2])
-        tables.append(Table(is_season, is_airing, season, start_ep, end_ep, header_str, content_str))
 
-    return tables
+        table = Table(is_season, is_airing, season, start_ep, end_ep, header_str, content_str)
+
+        if slice_from < len(table):
+            table_extraction = _TableExtraction(table, do_slice=True, slice_from=slice_from, slice_to=slice_to)
+            table_extractions.append(table_extraction)
+
+        slice_from -= len(table)
+        slice_to -= len(table)
+
+        if slice_to < 0:
+            break
+        if slice_from < 0:
+            slice_from = 0
+
+    return table_extractions
 
 
-def extract_row_datas(table: Table, row_data_pattern: re.Pattern[str], filter_patterns: List[re.Pattern[str]]):
+def extract_row_datas(table_extraction: _TableExtraction, filter_patterns: List[re.Pattern[str]]):
     episodes: List[Episode] = []
 
-    rows = re.findall(row_pattern, table.html_table)
-    # print(f"{str(table)} - found {len(rows)} rows")
-    # print('\n'.join(rows))
+    table = table_extraction.table
+    rows = re.findall(row_pattern, table.html_table)[table_extraction.slice_from:table_extraction.slice_to:]
 
     for row in rows:
         filter_violation = False
@@ -149,7 +178,7 @@ def extract_row_datas(table: Table, row_data_pattern: re.Pattern[str], filter_pa
         if filter_violation:
             continue
 
-        row_data_unformatted = re.findall(row_data_pattern, row)
+        row_data_unformatted = re.findall(data_pattern, row)
 
         season = table.season
         index_jpn = remove_html_tags(row_data_unformatted[0])
@@ -160,7 +189,7 @@ def extract_row_datas(table: Table, row_data_pattern: re.Pattern[str], filter_pa
         else:
             episode_meta_link = episode_unformatted[0][0].strip()
             episode_meta_title = episode_unformatted[0][1].strip()
-            episode_meta_label = episode_unformatted[0][2].strip()
+            episode_meta_label = remove_html_tags(episode_unformatted[0][2])
             episode_meta = EpisodeMeta(episode_meta_link, episode_meta_title, episode_meta_label)
         date_jpn = remove_html_tags(row_data_unformatted[3])
         # date_jpn_datetime = time.strptime(date_jpn, "%B %d, %Y")
@@ -200,11 +229,13 @@ def extract_episodes(page_html: str, filter_params: FilterParams) -> List[Episod
         plot_filter_pattern = re.compile(fr"<img.*?src=\".*?Plot-(?:{'|'.join(map(lambda p: p.name, filter_params.plot))})\..*?\".*?>", re.IGNORECASE)
         row_filter_patterns.append(plot_filter_pattern)
 
-    tables: List[Table] = extract_tables(page_html, table_pattern, table_header_pattern, table_header_extractor_pattern, table_content_pattern, table_filter_patterns)
+    slice_index: Tuple[int, int] = (filter_params.offset, filter_params.offset + filter_params.limit)
+
+    tables = extract_tables(page_html, table_filter_patterns, slice_index)
 
     episodes: List[Episode] = []
     for table in tables:
-        episodes.extend(extract_row_datas(table, data_pattern, row_filter_patterns))
+        episodes.extend(extract_row_datas(table, row_filter_patterns))
 
     return episodes
 
@@ -214,13 +245,13 @@ def extract_episodes_asdict(page_html: str, filter_params: FilterParams):
     return map(asdict, row_datas)
 
 
-# wikipage = ''
+wikipage = ''
 
-# with open('/home/phuwit/Programming/CanYouRegMyEx-Backend/Anime - Detective Conan Wiki.html', 'r') as f:
-#     wikipage = f.read()
+with open('/home/phuwit/Programming/CanYouRegMyEx-Backend/Anime - Detective Conan Wiki.html', 'r') as f:
+    wikipage = f.read()
 
-# episode_datas = extract_episodes(wikipage, FilterParams(filter=[], plot=[], season=[1], limit=100, offset=0))
-# # episode_dicts = list(extract_episodes_asdict(wikipage, FilterParams(filter=['shinkansen'], plot=[Plot.CHAR], season=[1], limit=100, offset=0)))
+episode_datas = extract_episodes(wikipage, FilterParams(filter=[], plot=[], season=[], limit=100, offset=200))
+# episode_dicts = list(extract_episodes_asdict(wikipage, FilterParams(filter=['shinkansen'], plot=[Plot.CHAR], season=[1], limit=100, offset=0)))
 
-# print('\n\n'.join(map(str, episode_datas)))
-# # print(episode_dicts)
+print('\n\n'.join(map(str, episode_datas)))
+# print(episode_dicts)
