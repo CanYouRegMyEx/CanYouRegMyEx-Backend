@@ -7,7 +7,7 @@ from lib.utils.episode import FilterParams, extract_episodes
 EPISODES_PAGE_URL = 'https://www.detectiveconanworld.com/wiki/Anime'
 
 
-router = APIRouter(prefix='/episode', tags=['episode_list'])
+router = APIRouter(prefix='/episodes', tags=['episode_list'])
 
 
 @router.get('/')
