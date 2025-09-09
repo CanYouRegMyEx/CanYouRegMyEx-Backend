@@ -51,14 +51,14 @@ class BGMDescription:
     data_pattern = re.compile(r'(?:>|^)([^<>\n]+)(?:<|$)', re.DOTALL)
     cast_section_pattern = re.compile(r'<span class="mw-headline" id="Cast">Cast</span>.*?<span.*?>', re.DOTALL)
     cast_image_pattern = re.compile(r'<img.*?src="(.*?)".*?>.*?<a.*?>(.*?)</a>', re.DOTALL)
-    speech_section_pattern = re.compile(r'<span class="mw-headline" id="Conan.27s_opening_speech">Conan\'s opening speech</span>.*?<span class="mw-headline" id="Song_info">Song info</span>', re.DOTALL)
+    speech_section_pattern = re.compile(r'<span class="mw-headline" id="Conan.27s_opening_speech">Conan\'s opening speech</span>.*?<span class="mw-headline" id="Song_[Ii]nfo">Song [Ii]nfo</span>', re.DOTALL)
     speech_section_by_language_pattern = re.compile(r'<h4>(.*?)</h4>.*?<table.*?>(.*?)</table>', re.DOTALL)
     speech_block_pattern = re.compile(r'<td.*?>.*?<td.*?>(.*?)</td>.*?</td>', re.DOTALL)
     speech_data_pattern = re.compile(r'(?:>|^|\n)([^<>\n]+)(?:<|$|\n)', re.DOTALL)
     alternate_speech_section_pattern = re.compile(r'<table.*?>(.*?)</table>', re.DOTALL)
     lyrics_section_pattern = re.compile(r'<span class="mw-headline" id="Lyrics">Lyrics</span>.*?<span.*?>', re.DOTALL)
     lyrics_section_by_language_pattern = re.compile(r'<div.*?data-title="(.*?)".*?>(.*?)</div>', re.DOTALL)
-    cd_info_section_pattern = re.compile(r'<span class="mw-headline" id="CD_[Ii]nfo">CD [Ii]nfo</span>.*?<span class="mw-headline" id="Gallery">Gallery</span>', re.DOTALL)
+    cd_info_section_pattern = re.compile(r'(?:<span class="mw-headline" id="CD_[Ii]nfo">CD [Ii]nfo</span>).*?<span class="mw-headline" id="Gallery">Gallery</span>|(?:<span class="mw-headline" id="Release_info">Release info</span>).*?<span class="mw-headline" id="Gallery">Gallery</span>', re.DOTALL)
     cd_info_cd_tracks_section_pattern = re.compile(r'<h3>.*?<span.*?>(.*?)</span></h3>.*?<table.*?>(.*?)</table>', re.DOTALL)
     cd_info_row_pattern = re.compile(r'<tr>(.*?)</tr>', re.DOTALL)
     cd_info_data_pattern = re.compile(r'<td.*?>(.*?)\n?</td>', re.DOTALL)
@@ -76,23 +76,24 @@ class BGMDescription:
         cast_section = re.search(BGMDescription.cast_section_pattern, html)
         cast_images = re.findall(BGMDescription.cast_image_pattern, cast_section.group())
         speech_section = re.search(BGMDescription.speech_section_pattern, html)
-        speech_section_by_language = re.findall(BGMDescription.speech_section_by_language_pattern, speech_section.group())
-        if speech_section_by_language != []:
-            speech_data_raw = [(language, re.search(BGMDescription.speech_block_pattern, speech).group(1)) for language, speech in speech_section_by_language]
-            speech_data = {"".join(re.findall(BGMDescription.data_pattern, language)) : "".join(re.findall(BGMDescription.speech_data_pattern, speech)) for language, speech in speech_data_raw}
-        else:
-            alternate_speech_section = re.search(BGMDescription.alternate_speech_section_pattern, speech_section.group())
-            speech_data_raw = re.search(BGMDescription.speech_block_pattern, alternate_speech_section.group(1))
-            speech_data = {"Japanese" : "".join(re.findall(BGMDescription.speech_data_pattern, speech_data_raw.group(1)))}
-        self.speech = speech_data
+        if speech_section != None:
+            speech_section_by_language = re.findall(BGMDescription.speech_section_by_language_pattern, speech_section.group())
+            if speech_section_by_language != []:
+                speech_data_raw = [(language, re.search(BGMDescription.speech_block_pattern, speech).group(1)) for language, speech in speech_section_by_language]
+                speech_data = {"".join(re.findall(BGMDescription.data_pattern, language)) : "".join(re.findall(BGMDescription.speech_data_pattern, speech)) for language, speech in speech_data_raw}
+            else:
+                alternate_speech_section = re.search(BGMDescription.alternate_speech_section_pattern, speech_section.group())
+                speech_data_raw = re.search(BGMDescription.speech_block_pattern, alternate_speech_section.group(1))
+                speech_data = {"Japanese" : "".join(re.findall(BGMDescription.speech_data_pattern, speech_data_raw.group(1)))}
+            self.speech = speech_data
         lyrics_section = re.search(BGMDescription.lyrics_section_pattern, html)
         lyrics_section_by_language = re.findall(BGMDescription.lyrics_section_by_language_pattern, lyrics_section.group())
-        lyrics_data = {language : "".join(re.findall(BGMDescription.data_pattern, lyric)) for language, lyric in lyrics_section_by_language}
+        lyrics_data = {language : " ".join(re.findall(BGMDescription.data_pattern, lyric)) for language, lyric in lyrics_section_by_language}
         cd_info_section = re.search(BGMDescription.cd_info_section_pattern, html)
         if cd_info_section != None:
             cd_info_cd_tracks = re.findall(BGMDescription.cd_info_cd_tracks_section_pattern, cd_info_section.group())
             cd_info_row = [(track_name, re.findall(BGMDescription.cd_info_row_pattern, cd_info_table)) for track_name, cd_info_table in cd_info_cd_tracks]
-            cd_info_data = [(track_name, [re.findall(BGMDescription.cd_info_data_pattern, row) for row in rows[1:]]) for track_name, rows in cd_info_row]
+            cd_info_data = [("".join(re.findall(BGMDescription.data_pattern, track_name)), [["".join(re.findall(BGMDescription.data_pattern, data)) for data in re.findall(BGMDescription.cd_info_data_pattern, row)] for row in rows[1:]]) for track_name, rows in cd_info_row]
             self.cd_info = {track_name : [BGMCD(*cd_info) for cd_info in cd_infos] for track_name, cd_infos in cd_info_data}
         self.description = "".join(description_data)
         self.cast = [BGMImage(*image) for image in cast_images]
@@ -101,8 +102,8 @@ class BGMDescription:
         return self
 
 class BGMImageGallery:
-    image_gallery_section_pattern = re.compile(r'<h2><span class="mw-headline" id="Gallery">Gallery</span></h2>\n?(.*?)<h2>.*?<span.*?>.*?</span>.*?</h2>', re.DOTALL)
-    cd_tv_other_divider_pattern = re.compile(r'(?:<h3>(.*?)<h3>(.*))|(.*)', re.DOTALL)
+    image_gallery_section_pattern = re.compile(r'<h[23]><span class="mw-headline" id="Gallery">Gallery</span></h[23]>\n?(.*?)<h2>.*?<span.*?>.*?</span>.*?</h2>', re.DOTALL)
+    cd_tv_other_divider_pattern = re.compile(r'(?:<h[34]>(.*?)<h[34]>(.*))|(.*)', re.DOTALL)
     image_pattern = re.compile(r'<img.*?src="(.*?)".*?>.*?<div.*?class="gallerytext".*?>(.*?)</div>', re.DOTALL)
     data_pattern = re.compile(r'<.*?>', re.DOTALL)
 
