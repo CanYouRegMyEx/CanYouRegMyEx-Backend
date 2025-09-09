@@ -55,9 +55,11 @@ class BGMDescription:
     speech_section_by_language_pattern = re.compile(r'<h4>(.*?)</h4>.*?<table.*?>(.*?)</table>', re.DOTALL)
     speech_block_pattern = re.compile(r'<td.*?>.*?<td.*?>(.*?)</td>.*?</td>', re.DOTALL)
     speech_data_pattern = re.compile(r'(?:>|^|\n)([^<>\n]+)(?:<|$|\n)', re.DOTALL)
+    alternate_speech_section_pattern = re.compile(r'<table.*?>(.*?)</table>', re.DOTALL)
     lyrics_section_pattern = re.compile(r'<span class="mw-headline" id="Lyrics">Lyrics</span>.*?<span.*?>', re.DOTALL)
     lyrics_section_by_language_pattern = re.compile(r'<div.*?data-title="(.*?)".*?>(.*?)</div>', re.DOTALL)
-    cd_info_section_pattern = re.compile(r'<span class="mw-headline" id="CD_[Tt]rack_[Ll]isting">CD [Tt]rack [Ll]isting</span>.*?<span class="mw-headline" id="Gallery">Gallery</span>', re.DOTALL)
+    cd_info_section_pattern = re.compile(r'<span class="mw-headline" id="CD_[Ii]nfo">CD [Ii]nfo</span>.*?<span class="mw-headline" id="Gallery">Gallery</span>', re.DOTALL)
+    cd_info_cd_tracks_section_pattern = re.compile(r'<h3>.*?<span.*?>(.*?)</span></h3>.*?<table.*?>(.*?)</table>', re.DOTALL)
     cd_info_row_pattern = re.compile(r'<tr>(.*?)</tr>', re.DOTALL)
     cd_info_data_pattern = re.compile(r'<td.*?>(.*?)\n?</td>', re.DOTALL)
 
@@ -74,21 +76,28 @@ class BGMDescription:
         cast_section = re.search(BGMDescription.cast_section_pattern, html)
         cast_images = re.findall(BGMDescription.cast_image_pattern, cast_section.group())
         speech_section = re.search(BGMDescription.speech_section_pattern, html)
-        if speech_section != None:
-            speech_section_by_language = re.findall(BGMDescription.speech_section_by_language_pattern, speech_section.group())
+        speech_section_by_language = re.findall(BGMDescription.speech_section_by_language_pattern, speech_section.group())
+        if speech_section_by_language != []:
             speech_data_raw = [(language, re.search(BGMDescription.speech_block_pattern, speech).group(1)) for language, speech in speech_section_by_language]
             speech_data = {"".join(re.findall(BGMDescription.data_pattern, language)) : "".join(re.findall(BGMDescription.speech_data_pattern, speech)) for language, speech in speech_data_raw}
-            self.speech = speech_data
+        else:
+            alternate_speech_section = re.search(BGMDescription.alternate_speech_section_pattern, speech_section.group())
+            speech_data_raw = re.search(BGMDescription.speech_block_pattern, alternate_speech_section.group(1))
+            speech_data = {"Japanese" : "".join(re.findall(BGMDescription.speech_data_pattern, speech_data_raw.group(1)))}
+        self.speech = speech_data
         lyrics_section = re.search(BGMDescription.lyrics_section_pattern, html)
         lyrics_section_by_language = re.findall(BGMDescription.lyrics_section_by_language_pattern, lyrics_section.group())
         lyrics_data = {language : "".join(re.findall(BGMDescription.data_pattern, lyric)) for language, lyric in lyrics_section_by_language}
         cd_info_section = re.search(BGMDescription.cd_info_section_pattern, html)
-        cd_info_row = re.findall(BGMDescription.cd_info_row_pattern, cd_info_section.group())
-        cd_info_data = [re.findall(BGMDescription.cd_info_data_pattern, row) for row in cd_info_row[1:]]
+        if cd_info_section != None:
+            cd_info_cd_tracks = re.findall(BGMDescription.cd_info_cd_tracks_section_pattern, cd_info_section.group())
+            cd_info_row = [(track_name, re.findall(BGMDescription.cd_info_row_pattern, cd_info_table)) for track_name, cd_info_table in cd_info_cd_tracks]
+            cd_info_data = [(track_name, [re.findall(BGMDescription.cd_info_data_pattern, row) for row in rows[1:]]) for track_name, rows in cd_info_row]
+            self.cd_info = {track_name : [BGMCD(*cd_info) for cd_info in cd_infos] for track_name, cd_infos in cd_info_data}
         self.description = "".join(description_data)
         self.cast = [BGMImage(*image) for image in cast_images]
         self.lyrics = lyrics_data
-        self.cd_info = [BGMCD(*cd_info) for cd_info in cd_info_data]
+        
         return self
 
 class BGMImageGallery:
@@ -100,19 +109,21 @@ class BGMImageGallery:
     def __init__(self):
         self.cd = []
         self.tv = []
+        self.other = []
 
     def extract(self, html):
         gallery_section = re.search(BGMImageGallery.image_gallery_section_pattern, html)
         cd_tv_other_section = re.search(BGMImageGallery.cd_tv_other_divider_pattern, gallery_section.group(1))
         cd_section, tv_section, other_section = cd_tv_other_section.group(1, 2, 3)
-        cd_section_image = [(image_url, re.sub(BGMImageGallery.data_pattern, r'', caption).strip()) for image_url, caption in re.findall(BGMImageGallery.image_pattern, cd_section)]
-        tv_section_image = [(image_url, re.sub(BGMImageGallery.data_pattern, r'', caption).strip()) for image_url, caption in re.findall(BGMImageGallery.image_pattern, tv_section)]
+        if cd_section != None:
+            cd_section_image = [(image_url, re.sub(BGMImageGallery.data_pattern, r'', caption).strip()) for image_url, caption in re.findall(BGMImageGallery.image_pattern, cd_section)]
+            self.cd = [BGMImage(*image) for image in cd_section_image]
+        if tv_section != None:
+            tv_section_image = [(image_url, re.sub(BGMImageGallery.data_pattern, r'', caption).strip()) for image_url, caption in re.findall(BGMImageGallery.image_pattern, tv_section)]
+            self.tv = [BGMImage(*image) for image in tv_section_image]
         if other_section != None:
             other_section_image = [(image_url, re.sub(BGMImageGallery.data_pattern, r'', caption).strip()) for image_url, caption in re.findall(BGMImageGallery.image_pattern, other_section)]
-        else:
-            other_section_image = []
-        self.cd = [BGMImage(*image) for image in cd_section_image + other_section_image]
-        self.tv = [BGMImage(*image) for image in tv_section_image]
+            self.other = [BGMImage(*image) for image in other_section_image]
         return self
 
 class BGMImage:
