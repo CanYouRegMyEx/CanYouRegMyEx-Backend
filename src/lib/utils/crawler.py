@@ -1,8 +1,9 @@
+from typing import Dict
 import urllib.request
 
-cache = {}
+cache: Dict[str, str] = {}
 
-def crawl(url: str):
+def crawl(url: str) -> str:
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
@@ -20,4 +21,4 @@ def crawl(url: str):
             return html
     except Exception as e:
         print(f"Error fetching {url}: {e}")
-        return None
+        raise RuntimeError(f"Failed to fetch URL {url}") from e
