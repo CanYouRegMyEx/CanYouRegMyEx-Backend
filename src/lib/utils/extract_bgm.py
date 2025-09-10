@@ -52,16 +52,16 @@ class BGMDescription:
     data_pattern = re.compile(r'(?:>|^)([^<>\n]+)(?:<|$)', re.DOTALL)
     cast_section_pattern = re.compile(r'<span class="mw-headline" id="Cast">Cast</span>.*?<span.*?>', re.DOTALL)
     cast_image_pattern = re.compile(r'<img.*?src="(.*?)".*?>.*?<a.*?>(.*?)</a>', re.DOTALL)
-    speech_section_pattern = re.compile(r'<span class="mw-headline" id="Conan.27s_opening_speech">Conan\'s opening speech</span>.*?<span class="mw-headline" id="Song_[Ii]nfo">Song [Ii]nfo</span>', re.DOTALL)
-    speech_section_by_language_pattern = re.compile(r'<h4>(.*?)</h4>.*?<table.*?>(.*?)</table>', re.DOTALL)
+    speech_section_pattern = re.compile(r'<span class="mw-headline" id="[Cc]onan.27s_[Oo]pening_[Ss]peech">[Cc]onan\'s [Oo]pening [Ss]peech</span>.*?<span class="mw-headline" id="Song_[Ii]nfo">Song [Ii]nfo</span>', re.DOTALL)
+    speech_section_by_language_pattern = re.compile(r'(?:<h4>(.*?)</h4>.*?<table.*?>(.*?)</table>)|(?:<h5>.*?</h5>.*?<table.*?>.*?</table>)', re.DOTALL)
     speech_block_pattern = re.compile(r'<td.*?>.*?<td.*?>(.*?)</td>.*?</td>', re.DOTALL)
     speech_data_pattern = re.compile(r'(?:>|^|\n)([^<>\n]+)(?:<|$|\n)', re.DOTALL)
     alternate_speech_section_pattern = re.compile(r'<table.*?>(.*?)</table>', re.DOTALL)
     lyrics_section_pattern = re.compile(r'<span class="mw-headline" id="Lyrics">Lyrics</span>.*?<span.*?>', re.DOTALL)
     lyrics_section_by_language_pattern = re.compile(r'<div.*?data-title="(.*?)".*?>(.*?)</div>', re.DOTALL)
     cd_info_section_pattern = re.compile(r'(?:<span class="mw-headline" id="CD_[Ii]nfo">CD [Ii]nfo</span>).*?<span class="mw-headline" id="Gallery">Gallery</span>|(?:<span class="mw-headline" id="Release_info">Release info</span>).*?<span class="mw-headline" id="Gallery">Gallery</span>', re.DOTALL)
-    alternate_cd_info_section_pattern = re.compile(r'<span class="mw-headline" id="CD_Track_Listing">CD Track Listing</span>.*?(?:<span class="mw-headline" id="Gallery">Gallery</span>)|<span class="mw-headline" id="CD_Track_Listing">CD Track Listing</span>.*?(?:<span class="mw-headline" id="See_also">See also</span>)', re.DOTALL)
-    cd_info_cd_tracks_section_pattern = re.compile(r'(?:<h3>.*?<span.*?>(.*?)</span></h3>)?.*?<table.*?>(.*?)</table>', re.DOTALL)
+    alternate_cd_info_section_pattern = re.compile(r'<span class="mw-headline" id="(?:CD_)?Track_Listing">(?:CD )?Track Listing</span>.*?(?:<span class="mw-headline" id="Gallery">Gallery</span>)|<span class="mw-headline" id="(?:CD_)?Track_Listing">(?:CD )?Track Listing</span>.*?(?:<span class="mw-headline" id="See_also">See also</span>)', re.DOTALL)
+    cd_info_cd_tracks_section_pattern = re.compile(r'(?:.*?<h3>.*?<span.*?>(.*?)</span></h3>)?.*?<table.*?>(.*?)</table>', re.DOTALL)
     cd_info_row_pattern = re.compile(r'<tr>(.*?)</tr>', re.DOTALL)
     cd_info_data_pattern = re.compile(r'<td.*?>(.*?)\n?</td>', re.DOTALL)
 
@@ -82,6 +82,7 @@ class BGMDescription:
         speech_section = re.search(BGMDescription.speech_section_pattern, html)
         if speech_section != None:
             speech_section_by_language = re.findall(BGMDescription.speech_section_by_language_pattern, speech_section.group())
+            speech_section_by_language = [section for section in speech_section_by_language if section != ("", "")]
             if speech_section_by_language != []:
                 speech_data_raw = [(language, re.search(BGMDescription.speech_block_pattern, speech).group(1)) for language, speech in speech_section_by_language]
                 speech_data = {"".join(re.findall(BGMDescription.data_pattern, language)) : "".join(re.findall(BGMDescription.speech_data_pattern, speech)) for language, speech in speech_data_raw}
@@ -95,13 +96,14 @@ class BGMDescription:
             lyrics_section_by_language = re.findall(BGMDescription.lyrics_section_by_language_pattern, lyrics_section.group())
             lyrics_data = {language : " ".join(re.findall(BGMDescription.data_pattern, lyric)) for language, lyric in lyrics_section_by_language}
             self.lyrics = lyrics_data
-        cd_info_section = re.search(BGMDescription.cd_info_section_pattern, html)
+        cd_info_section, alternate_cd_info_section = re.search(BGMDescription.cd_info_section_pattern, html), re.search(BGMDescription.alternate_cd_info_section_pattern, html)
         if cd_info_section != None:
             cd_info_cd_tracks = re.findall(BGMDescription.cd_info_cd_tracks_section_pattern, cd_info_section.group())
             cd_info_row = [(track_name, re.findall(BGMDescription.cd_info_row_pattern, cd_info_table)) for track_name, cd_info_table in cd_info_cd_tracks]
             cd_info_data = [("".join(re.findall(BGMDescription.data_pattern, track_name)), [["".join(re.findall(BGMDescription.data_pattern, data)) for data in re.findall(BGMDescription.cd_info_data_pattern, row)] for row in rows[1:]]) for track_name, rows in cd_info_row]
         else:
-            alternate_cd_info_section = re.search(BGMDescription.alternate_cd_info_section_pattern, html)
+            cd_info_data = []
+        if alternate_cd_info_section != None:
             cd_info_cd_tracks = re.findall(BGMDescription.cd_info_cd_tracks_section_pattern, alternate_cd_info_section.group())
             cd_info_row = [(track_name, re.findall(BGMDescription.cd_info_row_pattern, cd_info_table)) for track_name, cd_info_table in cd_info_cd_tracks]
             cd_info_data = [("".join(re.findall(BGMDescription.data_pattern, track_name)), [["".join(re.findall(BGMDescription.data_pattern, data)) for data in re.findall(BGMDescription.cd_info_data_pattern, row)] for row in rows[1:]]) for track_name, rows in cd_info_row]
