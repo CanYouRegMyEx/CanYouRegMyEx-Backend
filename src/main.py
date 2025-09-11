@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import Config
-from routers import episode_list, episode, character
+from routers import episode_list, episode, character, bgm
 
 app = FastAPI()
 
@@ -19,7 +19,7 @@ app.add_middleware(
 app.include_router(episode_list.router)
 app.include_router(episode.router)
 app.include_router(character.router)
-
+app.include_router(bgm.router)
 
 class Item(BaseModel):
     name: str
