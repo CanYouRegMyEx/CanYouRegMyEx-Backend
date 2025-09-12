@@ -41,7 +41,6 @@ class Resolution(BaseModel):
     Evidence: list[str]
     Conclusion: str
     Motive: str
-    Aftermath: str
     Description: str
        
 class Episode(BaseModel):
@@ -115,12 +114,11 @@ crime_victim_pattern_special = re.compile(r'Victim:</strong></span>\s<span><a\sh
 
 situation_pettern = re.compile(r'id="Situation">Situation</span></h3>\s*<p>([^<]*)</p>')
 
-resolution_pattern = re.compile(r'id="Resolution[^"]*">(?:(?!overflow).)*overflow:\shidden;">\s*(?:(?!</div>).)*', re.DOTALL)
-resolution_evidence_pattern = re.compile(r'Evidence</span></h\d>\s*(<ul>.*?</ul>)', re.DOTALL)
+resolution_pattern = re.compile(r'id="(?:Case_)?Resolution[^"]*">(?:(?!overflow).)*overflow:\shidden;">\s*(?:(?!<\/div>).)*', re.DOTALL)
+resolution_evidence_pattern = re.compile(r'Evidence[^<]*</span></h\d>\s*(<ul>.*?</ul>)', re.DOTALL)
 resolution_evidence_pattern_v2 = re.compile(r'Evidence<\/span><\/h\d>\s*.*?<\/ul>\s*(<ul>.*?<\/ul>)', re.DOTALL)
 resolution_conclusion_pattern = re.compile(r'Conclusion</span></h\d>\s*(<p>.*?</p>)', re.DOTALL)
 resolution_motive_pattern = re.compile(r'Motive<\/span><\/h\d>\s*(.*).')
-resolution_aftermath_pattern = re.compile(r'Aftermath</span></h\d>\s*(<p>.*?</p>)',re.DOTALL)
 
 between_tag_li_pattern = re.compile(r'<li>(.*?)<\/li>')
 between_tag_p_pattern = re.compile(r'<p>(.*?)<\/p>', re.DOTALL)
@@ -390,6 +388,7 @@ def extract_resolution(html_content, episode_data:dict) -> dict:
     resolutions = re.findall(resolution_pattern, html_content)
 
     for resolution in resolutions:
+        print(resolution)
 
         try:
            
@@ -401,10 +400,8 @@ def extract_resolution(html_content, episode_data:dict) -> dict:
             evidence = evidence_list if (evidence_list:= re.findall(between_tag_li_pattern, evidence)) else []
             conclusion =  conclusion_text[0] if (conclusion_text:= re.findall(resolution_conclusion_pattern, resolution)) else ""
             motive = motive_text[0] if (motive_text:= re.findall(resolution_motive_pattern, resolution)) else ""
-            aftermath = aftermath_text[0] if (aftermath_text:= re.findall(resolution_aftermath_pattern, resolution)) else "" 
-
             
-            if evidence == [] and conclusion == "" and motive == "" and aftermath == "":
+            if evidence == [] and conclusion == "" and motive == "":
                 raise Exception("resolution data not found")
 
             conclusion_p = re.findall(between_tag_p_pattern, conclusion)[0]
@@ -414,20 +411,21 @@ def extract_resolution(html_content, episode_data:dict) -> dict:
                 "Evidence": evidence,
                 "Conclusion": conclusion_p,
                 "Motive" : sub_tag(motive),
-                "Aftermath": sub_tag(aftermath),
                 "Description": ""
             }
+
+            print(resolution_data)
 
             resolution_object  = Resolution(**resolution_data)
             resolution_list.append(resolution_object)
 
         except:            
+
             resolution_data = {
                 "Evidence": [],
                 "Conclusion": "",
                 "Motive" : "",
-                "Aftermath": "",
-                "Description": re.findall(r'Show spoilers\s[^;]*;(.*)', sub_tag(resolution))[0]
+                "Description": re.findall(re.compile(r'Show spoilers\s[^;]*;(.*)', re.DOTALL), sub_tag(resolution))[0]
             }
 
             print(resolution_data)
@@ -530,4 +528,4 @@ def main_extract_episode(url: str):
     
 
 
-# main_extract_episode("https://www.detectiveconanworld.com/wiki/Kid_vs._Amuro:_Queen%27s_Bang")
+# main_extract_episode("https://www.detectiveconanworld.com/wiki/Company_President%27s_Daughter_Kidnapping_Case")
