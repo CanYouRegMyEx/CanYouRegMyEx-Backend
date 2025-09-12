@@ -1,13 +1,24 @@
+from typing import Dict
 import urllib.request
 
-def crawl(url: str):
+cache: Dict[str, str] = {}
+
+def crawl(url: str) -> str:
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
+
+    if url in cache:
+        print(f"Loaded from memory cache: {url}")
+        return cache[url]
+
     try:
         request = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(request) as response:
-            return response.read().decode('utf-8')
+            html = response.read().decode("utf-8")
+            cache[url] = html
+            print(f"Fetched and cached in memory: {url}")
+            return html
     except Exception as e:
-        print(f"Error: {e}")
-        return None
+        print(f"Error fetching {url}: {e}")
+        raise RuntimeError(f"Failed to fetch URL {url}") from e

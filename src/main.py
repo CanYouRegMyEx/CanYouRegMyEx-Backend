@@ -1,15 +1,25 @@
 from typing import Any, Union
-
-from fastapi import FastAPI
 from pydantic import BaseModel
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-from routers import episode_list, episode, character
+from config import Config
+from routers import episode_list, episode, character, bgm
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=Config.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(episode_list.router)
 app.include_router(episode.router)
 app.include_router(character.router)
+app.include_router(bgm.router)
 
 class Item(BaseModel):
     name: str
