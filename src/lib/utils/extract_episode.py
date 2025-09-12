@@ -1,5 +1,6 @@
 import re
 from lib.utils.crawler import *
+# from crawler import *
 from pydantic import BaseModel
 from typing import List
 
@@ -40,6 +41,7 @@ class Resolution(BaseModel):
     Evidence: list[str]
     Conclusion: str
     Motive: str
+    Aftermath: str
     Description: str
        
 class Episode(BaseModel):
@@ -50,12 +52,12 @@ class Episode(BaseModel):
     title_jpn: str
     description: str
     season: str
-    airdate: list[str]
+    airdate: list[str]   
     main_characters: list[MainCharacter]
     side_characters: list[SideCharacter]
     case: Case
     gadgets: list[Gadget]
-    resolution: Resolution
+    resolution: list[Resolution]
     bgm_list: list[dict]
    
 def isContainNewline(text):
@@ -71,6 +73,10 @@ def get_data_between_tag(text: str):
 def sub_tag(text: str):
     return re.sub(r'<[^>]+?>', "", text)
 
+def sub_code_string(text: str):
+    return re.sub(r'&#\d+', "", text) 
+
+
 BASE_URL = "https://www.detectiveconanworld.com"
 
 ####################################### pattern regx #######################################
@@ -80,7 +86,7 @@ remove_tag_pattern = re.compile(r'<.*?>')
 info_table_pattern = re.compile(r'<table class="infobox"[^>]*>.*?</table>', re.DOTALL)
 
 info_header_pattern = re.compile(r'<b>(.*?)</b>', re.DOTALL)
-info_row_key_vlaue_pattern = re.compile(r'<tr>\s*<th>(?P<row_key>[^:]*):\s*..th>\s*<td>(?P<row_value>[^\n]+)', re.DOTALL)
+info_row_key_vlaue_pattern = re.compile(r'<tr>\s*<th[^<]*>(?P<row_key>[^:]*):\s*..th>\s*<td>(?P<row_value>[^\n]+)', re.DOTALL)
 
 episode_number_pattern = re.compile(r'Episode\s+(\d+).*?Episode\s+([^)]*)', re.DOTALL)
 src_image_pattern = re.compile(r'src="([^"]+)"', re.DOTALL)
@@ -105,20 +111,26 @@ crime_culpritc_pattern = re.compile(r'Culprit:</strong></span>\s<span>([^<]*)')
 crime_description = re.compile(r'class="crime-description">([^<]*)')
 crime_cause_of_death = re.compile(r'Cause of death:</strong></span>\s<span>([^<]*)')
 crime_victim_pattern_normal = re.compile(r'Victim:</strong></span>\s<span>([^<]*)')
-crime_victim_pattern_shit = re.compile(r'Victim:</strong></span>\s<span><a\shref="[^"]*"\stitle="[^"]*">([^<]*)')
+crime_victim_pattern_special = re.compile(r'Victim:</strong></span>\s<span><a\shref="[^"]*"\stitle="[^"]*">([^<]*)')
 
 situation_pettern = re.compile(r'id="Situation">Situation</span></h3>\s*<p>([^<]*)</p>')
 
-resolution_pattern = re.compile(r'<div style="padding:[^"]*">((?:(?!<h2>).)*)', re.DOTALL)
+resolution_pattern = re.compile(r'id="Resolution[^"]*">(?:(?!overflow).)*overflow:\shidden;">\s*(?:(?!</div>).)*', re.DOTALL)
+resolution_evidence_pattern = re.compile(r'Evidence</span></h\d>\s*(<ul>.*?</ul>)', re.DOTALL)
+resolution_evidence_pattern_v2 = re.compile(r'Evidence<\/span><\/h\d>\s*.*?<\/ul>\s*(<ul>.*?<\/ul>)', re.DOTALL)
+resolution_conclusion_pattern = re.compile(r'Conclusion</span></h\d>\s*(<p>.*?</p>)', re.DOTALL)
+resolution_motive_pattern = re.compile(r'Motive<\/span><\/h\d>\s*(.*).')
+resolution_aftermath_pattern = re.compile(r'Aftermath</span></h\d>\s*(<p>.*?</p>)',re.DOTALL)
+
+between_tag_li_pattern = re.compile(r'<li>(.*?)<\/li>')
+between_tag_p_pattern = re.compile(r'<p>(.*?)<\/p>', re.DOTALL)
 
 bgm_table_pattern = re.compile(r'<div style="overflow:auto;">\s<table[^>]*>\s((?:(?!</table>).)*)' , re.DOTALL)
 tr_section_pattern = re.compile(r'<tr>.*?<\/tr>', re.DOTALL)
 row_data_td_pattern = re.compile(r'<td\sstyle="[^"]+">([^<]*)')
 row_data_td_a_pattern = re.compile(r'<a\shref="([^"]*)[^>]*>([^<]*)')
 
-## shit part for ep 1 ##
-
-main_character_shit_pattern = re.compile(r'Introduced<\/span></h\d>\s*<div\sstyle="overflow:hidden">\s*(.*?)<h3>', re.DOTALL)
+main_characters_for_ep1_pattern = re.compile(r'Introduced<\/span></h\d>\s*<div\sstyle="overflow:hidden">\s*(.*?)<h3>', re.DOTALL)
 
 br_split_pattern = re.compile(r' <br /> |<br /> | <br />|<br />') 
 
@@ -142,7 +154,12 @@ def extract_table_infobox(html_table, episode_data: dict)-> dict:
         row_key = row.group('row_key')
         row_value = row.group('row_value')
 
-        if row_key == "Japanese title":
+        if row_key == "Title":
+            list_title = []
+            list_title.append(row_value)
+            episode_data["title_eng"] = list_title
+        
+        elif row_key == "Japanese title":
             # row_vlaue = 図書館殺人事件 <br /> (Toshokan Satsujin Jiken)
             title = re.split(r' <br /> ', row_value)
             result_title = ''.join(title) 
@@ -151,7 +168,12 @@ def extract_table_infobox(html_table, episode_data: dict)-> dict:
 
         elif row_key == "Original airdate":
             # ex. Original airdate:March 3, 1997 <br /> March 15, 2014 <b>(Remastered version)</b>
-            original_airdate = re.split(r' <br />', row_value)[0]
+            original_airdate = re.split(r' <br />', row_value)
+            airdate_list = []
+            for airdate in original_airdate:
+                airdate_list.append(sub_tag(airdate))
+                
+            episode_data["airdate"] = airdate_list
 
         elif row_key == "Broadcast rating":
             # ex. Broadcast rating:16.8%
@@ -171,12 +193,15 @@ def extract_table_infobox(html_table, episode_data: dict)-> dict:
             pass
         elif row_key == "English title":
             # ex. English title:The Book Without Pages
-            episode_data["title_eng"] = re.split(br_split_pattern, row_value)
+            # list_title = re.split(br_split_pattern, row_value)
+            # episode_data["title_eng"] = list_title
+
             pass
         elif row_key == "Dubbed episode":
             pass
         elif row_key == "English airdate":
-           episode_data["airdate"] = re.split(br_split_pattern, row_value)        
+        #    episode_data["airdate"] = re.split(br_split_pattern, row_value)  
+            pass      
 
         # elif row_key == "Cast":
         #     pass
@@ -273,7 +298,7 @@ def extract_side_characters(div_side_characters, episode_data: dict)-> dict:
     
     return episode_data
 
-def extract_shit_main_characters(div_main_characters, episode_data:dict)-> dict:
+def extract_main_characters_for_ep1(div_main_characters, episode_data:dict)-> dict:
     
     main_characters_list = []
 
@@ -343,7 +368,7 @@ def extract_case(html_content, episode_data:dict )-> dict:
 
         victim = re.findall(crime_victim_pattern_normal, crime_data)
         if victim == [''] or victim == []:
-            victim = re.findall(crime_victim_pattern_shit, crime_data)
+            victim = re.findall(crime_victim_pattern_special, crime_data)
         
         if victim == []:
             victim = [""]
@@ -359,10 +384,66 @@ def extract_case(html_content, episode_data:dict )-> dict:
     
     return episode_data
 
-def extract_resolution(p_data, episode_data:dict) -> dict:
+def extract_resolution(html_content, episode_data:dict) -> dict:
+    resolution_list = []
+
+    resolutions = re.findall(resolution_pattern, html_content)
+
+    for resolution in resolutions:
+
+        try:
+           
+            try:
+                evidence = re.findall(resolution_evidence_pattern, resolution)[0]
+            except:
+                evidence = re.findall(resolution_evidence_pattern_v2, resolution)[0]
+
+            evidence = evidence_list if (evidence_list:= re.findall(between_tag_li_pattern, evidence)) else []
+            conclusion =  conclusion_text[0] if (conclusion_text:= re.findall(resolution_conclusion_pattern, resolution)) else ""
+            motive = motive_text[0] if (motive_text:= re.findall(resolution_motive_pattern, resolution)) else ""
+            aftermath = aftermath_text[0] if (aftermath_text:= re.findall(resolution_aftermath_pattern, resolution)) else "" 
+
+            
+            if evidence == [] and conclusion == "" and motive == "" and aftermath == "":
+                raise Exception("resolution data not found")
+
+            conclusion_p = re.findall(between_tag_p_pattern, conclusion)[0]
+            conclusion_p = sub_tag(conclusion_p)
+
+            resolution_data = {
+                "Evidence": evidence,
+                "Conclusion": conclusion_p,
+                "Motive" : sub_tag(motive),
+                "Aftermath": sub_tag(aftermath),
+                "Description": ""
+            }
+
+            resolution_object  = Resolution(**resolution_data)
+            resolution_list.append(resolution_object)
+
+        except:            
+            resolution_data = {
+                "Evidence": [],
+                "Conclusion": "",
+                "Motive" : "",
+                "Aftermath": "",
+                "Description": re.findall(r'Show spoilers\s[^;]*;(.*)', sub_tag(resolution))[0]
+            }
+
+            print(resolution_data)
+            resolution_object  = Resolution(**resolution_data)
+            resolution_list.append(resolution_object)
+
+    episode_data["resolution"] = resolution_list
+
     return episode_data
 
+
 def extract_bgm(table, episode_data: dict)-> dict:
+
+    if table == []:
+        episode_data["bgm_list"] = []
+        return episode_data
 
     bgm_list = []
 
@@ -395,7 +476,6 @@ def extract_bgm(table, episode_data: dict)-> dict:
 
 def main_extract_episode(url: str):
 
-    print("URL: " + url)
     episode_data = {
         "episode_number": "",
         "international_episode_number": "",
@@ -414,8 +494,6 @@ def main_extract_episode(url: str):
     }
 
 
-    # for test
-    
     # html_content = crawl(url)
     html_content = crawl(url)
 
@@ -430,8 +508,8 @@ def main_extract_episode(url: str):
         episode_data = extract_main_characters(div_main_characters, episode_data)
 
     except:
-        div_main_characters = re.findall(main_character_shit_pattern, html_content)
-        episode_data = extract_shit_main_characters(div_main_characters, episode_data)
+        div_main_characters = re.findall(main_characters_for_ep1_pattern, html_content)
+        episode_data = extract_main_characters_for_ep1(div_main_characters, episode_data)
     
     div_side_characters = re.findall(side_characters_pattern, html_content)
     episode_data = extract_side_characters(div_side_characters, episode_data)
@@ -452,4 +530,4 @@ def main_extract_episode(url: str):
     
 
 
-main_extract_episode("https://www.detectiveconanworld.com/wiki/Roller_Coaster_Murder_Case")
+# main_extract_episode("https://www.detectiveconanworld.com/wiki/Kid_vs._Amuro:_Queen%27s_Bang")
