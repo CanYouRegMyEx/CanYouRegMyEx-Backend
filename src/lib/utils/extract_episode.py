@@ -36,6 +36,11 @@ class Case(BaseModel):
     situation: list[str]    
     case_card_list: list[CaseCard]
 
+class Resolution(BaseModel):
+    Evidence: list[str]
+    Conclusion: str
+    Motive: str
+    Description: str
        
 class Episode(BaseModel):
     episode_number: str
@@ -50,7 +55,7 @@ class Episode(BaseModel):
     side_characters: list[SideCharacter]
     case: Case
     gadgets: list[Gadget]
-    resolution: str
+    resolution: Resolution
     bgm_list: list[dict]
    
 def isContainNewline(text):
@@ -152,7 +157,7 @@ def extract_table_infobox(html_table, episode_data: dict)-> dict:
             # ex. Broadcast rating:16.8%
             pass
         elif row_key == "Remastered rating":
-            # ex. Remastered rating:8.8%
+            # ex. Remastered rating:8.8resolution_pattern%
             pass
         elif row_key == "Manga case":
             # ex. Manga case:#26
@@ -355,21 +360,6 @@ def extract_case(html_content, episode_data:dict )-> dict:
     return episode_data
 
 def extract_resolution(p_data, episode_data:dict) -> dict:
-
-    # print(p_data[0])
-    sub_case_card = re.sub(crime_card_pattern, '', p_data[0])
-    text_resolution = re.split(remove_tag_pattern, sub_case_card)
-    
-    result_text_resolution = ""
-
-    for text in text_resolution:
-
-        if (not isContainNewline(text) or len(text) > 6):
-            result_text_resolution += text
-            result_text_resolution += " "
-    
-    episode_data["resolution"] = result_text_resolution
-
     return episode_data
 
 def extract_bgm(table, episode_data: dict)-> dict:
@@ -411,16 +401,16 @@ def main_extract_episode(url: str):
         "international_episode_number": "",
         "episode_image_url": "",
         "title_jpn": "",
-        "title_eng": [],
+        "title_eng": list[str],
         "description": "",
         "season": "",
-        "airdate": [],
+        "airdate": list[str],
         "main_characters": list[MainCharacter],
         "side_characters": list[SideCharacter],
         "case": None, 
         "gadgets": [],
-        "resolution" : "",
-        "bgm_list" : []
+        "resolution" : list[Resolution],
+        "bgm_list" : list[dict]
     }
 
 
@@ -449,8 +439,8 @@ def main_extract_episode(url: str):
     # Case 
     episode_data = extract_case(html_content, episode_data)
     
-    p_resolution = re.findall(resolution_pattern, html_content)
-    episode_data = extract_resolution(p_resolution, episode_data)
+    #Resolution
+    episode_data = extract_resolution(html_content, episode_data)
 
     table_bgm_listing = re.findall(bgm_table_pattern, html_content)
     episode_data = extract_bgm(table_bgm_listing, episode_data)
@@ -462,4 +452,4 @@ def main_extract_episode(url: str):
     
 
 
-# main_extract_episode("https://www.detectiveconanworld.com/wiki/Moonlight_Sonata_Murder_Case")
+main_extract_episode("https://www.detectiveconanworld.com/wiki/Roller_Coaster_Murder_Case")
