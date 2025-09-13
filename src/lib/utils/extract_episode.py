@@ -75,6 +75,8 @@ def sub_tag(text: str):
 def sub_code_string(text: str):
     return re.sub(r'&#\d+', "", text) 
 
+def sub_jpg(text: str):
+    return re.sub(r'.jpg', "", text)
 
 BASE_URL = "https://www.detectiveconanworld.com"
 
@@ -249,7 +251,7 @@ def extract_main_characters(div_main_characters, episode_data: dict)-> dict:
             main_character_data = {
                 "character_url": BASE_URL + char.group("link_href"),
                 "character_image_url": BASE_URL + char.group("image_url"),
-                "name_eng":  char.group("name"),
+                "name_eng":  sub_jpg(char.group("name")),
                 "character_info": []
             }
 
@@ -277,7 +279,7 @@ def extract_side_characters(div_side_characters, episode_data: dict)-> dict:
 
             character_data = {
                 "character_image_url": "",
-                "name_eng": get_data_between_tag(header_table)[0].split('\n')[0],
+                "name_eng": sub_jpg(get_data_between_tag(header_table)[0].split('\n')[0]),
                 "character_info": re.findall(get_li_pattern, info_table)
             }
 
@@ -407,8 +409,12 @@ def extract_resolution(html_content, episode_data:dict) -> dict:
             conclusion_p = re.findall(between_tag_p_pattern, conclusion)[0]
             conclusion_p = sub_tag(conclusion_p)
 
+            evidence_list_data = []
+            for evi in evidence:
+                evidence_list_data.append(sub_tag(evi))
+
             resolution_data = {
-                "Evidence": evidence,
+                "Evidence": evidence_list_data,
                 "Conclusion": conclusion_p,
                 "Motive" : sub_tag(motive),
                 "Description": ""
