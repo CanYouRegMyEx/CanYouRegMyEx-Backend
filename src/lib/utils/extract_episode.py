@@ -70,10 +70,11 @@ def get_data_between_tag(text: str):
     return re.findall(r'\s*[^>]+(?=<)', text)
 
 def sub_tag(text: str):
-    return re.sub(r'<[^>]+?>', "", text)
+    result = re.sub(r'<[^>]+?>', "", text)
+    return result
 
 def sub_code_string(text: str):
-    return re.sub(r'&#\d+', "", text) 
+    return re.sub(r'&#\d+;', "", text) 
 
 def sub_jpg(text: str):
     return re.sub(r'.jpg', "", text)
@@ -171,7 +172,7 @@ def extract_table_infobox(html_table, episode_data: dict)-> dict:
             original_airdate = re.split(r' <br />', row_value)
             airdate_list = []
             for airdate in original_airdate:
-                airdate_list.append(sub_tag(airdate))
+                airdate_list.append(sub_code_string(sub_tag(airdate)))
                 
             episode_data["airdate"] = airdate_list
 
@@ -390,8 +391,6 @@ def extract_resolution(html_content, episode_data:dict) -> dict:
     resolutions = re.findall(resolution_pattern, html_content)
 
     for resolution in resolutions:
-        print(resolution)
-
         try:
            
             try:
@@ -420,7 +419,7 @@ def extract_resolution(html_content, episode_data:dict) -> dict:
                 "Description": ""
             }
 
-            print(resolution_data)
+            # print(resolution_data)
 
             resolution_object  = Resolution(**resolution_data)
             resolution_list.append(resolution_object)
@@ -434,7 +433,7 @@ def extract_resolution(html_content, episode_data:dict) -> dict:
                 "Description": re.findall(re.compile(r'Show spoilers\s[^;]*;(.*)', re.DOTALL), sub_tag(resolution))[0]
             }
 
-            print(resolution_data)
+            # print(resolution_data)
             resolution_object  = Resolution(**resolution_data)
             resolution_list.append(resolution_object)
 
