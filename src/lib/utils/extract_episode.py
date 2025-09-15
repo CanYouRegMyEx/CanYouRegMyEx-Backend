@@ -107,7 +107,7 @@ get_li_pattern = re.compile(r'<li>([^<]*)', re.DOTALL)
 
 crime_card_pattern = re.compile(r'<div\sclass="infobox-crime">\s*(?P<crime_type><div\s[^<]*</div>)\s*<div\sclass=[^<]*>\s*(?P<crime_image>.*)\s*<div\sclass="[^<]*(?P<crime_data>.*)')
 crime_location_pattern = re.compile(r'Location:</strong></span> <span>([^<]*)')
-crime_suspect_pattern = re.compile(r'Suspect:</strong></span>\s<span>([^<]*)')  
+crime_suspect_pattern = re.compile(r'Suspects:</strong></span>\s<span>([^<]*)')  
 crime_attack_type = re.compile(r'Attack\sTypes:</strong></span>\s<span>([^<]*)')
 crime_culpritc_pattern = re.compile(r'Culprit:</strong></span>\s<span>([^<]*)')
 crime_description = re.compile(r'class="crime-description">([^<]*)')
@@ -157,7 +157,7 @@ def extract_table_infobox(html_table, episode_data: dict)-> dict:
 
         if row_key == "Title":
             list_title = []
-            list_title.append(row_value)
+            list_title.append(sub_code_string(row_value))
             episode_data["title_eng"] = list_title
         
         elif row_key == "Japanese title":
@@ -252,7 +252,7 @@ def extract_main_characters(div_main_characters, episode_data: dict)-> dict:
             main_character_data = {
                 "character_url": BASE_URL + char.group("link_href"),
                 "character_image_url": BASE_URL + char.group("image_url"),
-                "name_eng":  sub_jpg(char.group("name")),
+                "name_eng":  sub_code_string(sub_jpg(char.group("name"))),
                 "character_info": []
             }
 
