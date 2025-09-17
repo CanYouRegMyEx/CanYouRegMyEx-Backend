@@ -137,6 +137,8 @@ br_split_pattern = re.compile(r' <br /> |<br /> | <br />|<br />')
 
 link_name_image_main_char_pattern = re.compile(r'<a\shref="(?P<link>[^"]+)"\stitle="(?P<name>[^"]+)"><img\salt="[^"]*"\ssrc="(?P<image_url>[^"]+)')
 
+introduce_character_pattern = re.compile(r'<tr>\s*<th[^>]*>(.*?)<\/th><\/tr>', re.DOTALL)
+
 ####################################### pattern regx #######################################
 
 def extract_table_infobox(html_table, episode_data: dict)-> dict:
@@ -243,20 +245,57 @@ def extract_main_characters(div_main_characters, episode_data: dict)-> dict:
     
     main_character_list:list[MainCharacter] = []
 
+    print(div_main_characters)
+
+    black_list_character = []
+
     for tag_a_character in re.findall(get_tag_a_pattern, div_main_characters):
         # print(tag_a_character, "\n")   
         if(tag_a_character == []):
             return episode_data
 
+        # print(tag_a_character, "\n")
+
+        isRedirect = re.findall(r'mw-redirect', tag_a_character)
+        isAppearances = re.findall(r'href="(.*?_Appearances)"',tag_a_character )
+
+        if isRedirect != [] or isAppearances != []:
+            path = re.findall(r'href="/wiki/(.*?)"', tag_a_character)
+            # print(f"Black list append : {path}")
+            black_list_character.append(re.sub(r'_Appearances', "", path[0]))
+
         for char in re.finditer(href_name_src_character_pattern, tag_a_character):
+            # wiki/Unnamed_law_enforcers
+            path_to_character = char.group("link_href") 
+
+            police_list_pattern = re.compile(r'/wiki/Unnamed_law_enforcers.*')
+
+            path_to_character = re.sub(police_list_pattern,"",path_to_character)
+
+            name = sub_code_string(sub_jpg(char.group("name")))
+
+            url = "character/" + name
+
+            if path_to_character == "":
+                url = ""
+
+            # print(black_list_character)
+            if name.replace(" ", "_") in black_list_character:
+                url = ""
+        
             main_character_data = {
-                "character_url": BASE_URL + char.group("link_href"),
+                "character_url": url.replace(" ", "_"),
                 "character_image_url": BASE_URL + char.group("image_url"),
-                "name_eng":  sub_code_string(sub_jpg(char.group("name"))),
+                "name_eng":  name,
                 "character_info": []
             }
 
+
         character = MainCharacter(**main_character_data)
+
+        if character in main_character_list:
+            continue
+
         main_character_list.append(character)
 
     episode_data["main_characters"] = main_character_list
@@ -304,6 +343,7 @@ def extract_main_characters_for_ep1(div_main_characters, episode_data:dict)-> di
     main_characters_list = []
 
     # print(div_main_characters[0])
+    print(get_tbody_pattern)
     tbody = re.findall(get_tbody_pattern,div_main_characters[0])
 
     if (tbody == []):
@@ -312,10 +352,12 @@ def extract_main_characters_for_ep1(div_main_characters, episode_data:dict)-> di
     for tr in tbody:
         tr_data = re.findall(re.compile(r'<tr>.*?</tr>', re.DOTALL) , tr)[1]
         for data in re.finditer(link_name_image_main_char_pattern, tr_data):
+            
+
             main_character_data = {
-                "character_url": BASE_URL + data.group("link"),
+                "character_url": ("character/" + re.sub(r'&quot;', "", data.group("name"))).replace(" ","_"),
                 "character_image_url": BASE_URL + data.group("image_url"),
-                "name_eng":  data.group("name"),
+                "name_eng":  re.sub(r'&quot;', "", data.group("name")),
                 "character_info": []
             }
         
