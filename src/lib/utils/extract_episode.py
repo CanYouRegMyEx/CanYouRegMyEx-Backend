@@ -95,8 +95,8 @@ src_image_pattern = re.compile(r'src="([^"]+)"', re.DOTALL)
 
 description_paragraph_pattern = re.compile(r'<p>\s*<i><b>.*\s</p>')
 description_pattern = re.compile(r'\s*[^>&*;]+(?=<)')
-
-main_characters_pattern = re.compile(r'<div\s+style="display:flex[^"]*".*?>\s(.*?)<h2>', re.DOTALL)
+#main_characters_pattern = re.compile(r'<div\s+style="display:flex[^"]*".*?>\s(.*?)<h2>', re.DOTALL)
+main_characters_pattern = re.compile(r'<div style="background:[^>]*">Characters</div>.*?</div>\n</div>\n', re.DOTALL)
 get_tag_a_pattern = re.compile(r'<a\s*href[^>]*>.*a>') 
 href_name_src_character_pattern = re.compile(r'href="(?P<link_href>[^"]*)"\s*[^>]*><img\s*alt="(?P<name>[^"]*)"\ssrc="(?P<image_url>[^"]*)')
 
@@ -159,7 +159,7 @@ def extract_table_infobox(html_table, episode_data: dict)-> dict:
 
         if row_key == "Title":
             list_title = []
-            list_title.append(sub_code_string(row_value))
+            list_title.append(sub_tag(sub_code_string(row_value)))
             episode_data["title_eng"] = list_title
         
         elif row_key == "Japanese title":
@@ -242,12 +242,12 @@ def extract_episode_description(description_p, episode_data: dict)-> dict:
     
 def extract_main_characters(div_main_characters, episode_data: dict)-> dict: 
     div_main_characters = div_main_characters[0]
-    
+    # print(div_main_characters)
     main_character_list:list[MainCharacter] = []
 
-    print(div_main_characters)
-
     black_list_character = []
+
+    # print(div_main_characters)
 
     for tag_a_character in re.findall(get_tag_a_pattern, div_main_characters):
         # print(tag_a_character, "\n")   
@@ -255,6 +255,7 @@ def extract_main_characters(div_main_characters, episode_data: dict)-> dict:
             return episode_data
 
         # print(tag_a_character, "\n")
+        # print(sub_tag(tag_a_character), "\n")
 
         isRedirect = re.findall(r'mw-redirect', tag_a_character)
         isAppearances = re.findall(r'href="(.*?_Appearances)"',tag_a_character )
@@ -272,9 +273,12 @@ def extract_main_characters(div_main_characters, episode_data: dict)-> dict:
 
             path_to_character = re.sub(police_list_pattern,"",path_to_character)
 
-            name = sub_code_string(sub_jpg(char.group("name")))
+            # name = sub_code_string(sub_jpg(char.group("name")))
+            name = sub_tag(tag_a_character)
+            # print(name, "\n")
 
             url = "character/" + name
+            # print(path_to_character)
 
             if path_to_character == "":
                 url = ""
@@ -282,7 +286,18 @@ def extract_main_characters(div_main_characters, episode_data: dict)-> dict:
             # print(black_list_character)
             if name.replace(" ", "_") in black_list_character:
                 url = ""
-        
+            
+            isFlashBack = re.findall(r'(flashback)', name)
+            if isFlashBack != []:
+                url = ""
+
+            if "http" in path_to_character:
+                url = path_to_character
+
+            if "(background)" in name or "(mentioned)" in name or "(voice)" in name:
+                name = re.sub(r'\(.*?\)',"",name)
+                url = "character/" + name
+
             main_character_data = {
                 "character_url": url.replace(" ", "_"),
                 "character_image_url": BASE_URL + char.group("image_url"),
@@ -304,6 +319,10 @@ def extract_main_characters(div_main_characters, episode_data: dict)-> dict:
 
 def extract_side_characters(div_side_characters, episode_data: dict)-> dict:
 
+    if div_side_characters == []:
+        episode_data["side_characters"] = []
+        return episode_data
+    
     side_characters_list = []
 
     for side_char in div_side_characters:
@@ -343,7 +362,7 @@ def extract_main_characters_for_ep1(div_main_characters, episode_data:dict)-> di
     main_characters_list = []
 
     # print(div_main_characters[0])
-    print(get_tbody_pattern)
+    
     tbody = re.findall(get_tbody_pattern,div_main_characters[0])
 
     if (tbody == []):
