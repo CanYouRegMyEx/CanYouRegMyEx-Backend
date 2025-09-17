@@ -96,13 +96,13 @@ plot_pattern = re.compile(r"<img.*?src=\".*?/Plot-(.*?)\..*?\".*?>")
 source_tv_original_pattern = re.compile(r".*?<b>TV Original</b>.*?")
 # generic_html_tag_pattern = re.compile(r"</?(.*?)(?: |>)")
 # generic_html_tag_pattern = re.compile(r"<(.*?)>")
-citetation_pattern = re.compile(r"(<sup id=\"cite.*?</sup>)")
+citation_pattern = re.compile(r"(<sup id=\"cite.*?</sup>)")
 generic_html_tag_open_pattern = re.compile(r"(<[^/].*?>)")
 generic_html_tag_close_pattern = re.compile(r"(<(?:/.*?|.*?/)>)")
 
 
 def remove_html_tags(string: str) -> str:
-    string = re.sub(citetation_pattern, '', string)
+    string = re.sub(citation_pattern, '', string)
     string = re.sub(generic_html_tag_close_pattern, ' ', string)
     string = re.sub(generic_html_tag_open_pattern, '', string)
     return string.strip()
