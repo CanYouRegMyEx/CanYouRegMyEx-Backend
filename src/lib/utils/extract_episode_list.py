@@ -86,7 +86,7 @@ class Episode:
 table_pattern = re.compile(r"(<h3>.*?</table>)", re.DOTALL)
 table_header_pattern = re.compile(r"<h3><span.*?>(.*?)</span></h3>")
 table_header_extractor_pattern = re.compile(r"Season (\d+?) - Episodes (\d+?)-(.+)")
-row_special_episode_pattern = re.compile(r'<tr>\s<td style=\".*?background:(?!#f2fde9;).*?</tr>', re.DOTALL)
+row_special_episode_pattern = re.compile(r'<tr>\s<td style=\".*?background:#f2fde9;\">(R\d.*?)</td></tr>|<tr>\s<td style=\".*?background:(?!#f2fde9;).*?</tr>', re.DOTALL)
 
 table_content_pattern = re.compile(r"<tbody.*?><tr>\s*?<th.+?</th></tr>\s*(.*?)\s*</tbody>", re.DOTALL)
 row_pattern = re.compile(r"<tr>(?P<rowdata>.*?)</tr>", re.DOTALL)
