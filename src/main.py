@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import Config
-from routers import episode_list, episode, character, bgm
+from routers import export_file, episode_list, episode, character, bgm
 
 app = FastAPI()
 
@@ -16,6 +16,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(export_file.router)
 app.include_router(episode_list.router)
 app.include_router(episode.router)
 app.include_router(character.router)

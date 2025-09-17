@@ -159,7 +159,7 @@ def extract_tables(page_html: str, filter_patterns: List[re.Pattern[str]], slice
             if slice_from < 0:
                 slice_from = 0
         else:
-            table_extraction = _TableExtraction(table, do_slice=True, slice_from=0, slice_to=0)
+            table_extraction = _TableExtraction(table, do_slice=False, slice_from=0, slice_to=0)
             table_extractions.append(table_extraction)
 
     return table_extractions
@@ -169,7 +169,9 @@ def extract_row_datas(table_extraction: _TableExtraction, filter_patterns: List[
     episodes: List[Episode] = []
 
     table = table_extraction.table
-    rows = re.findall(row_pattern, table.html_table)[table_extraction.slice_from:table_extraction.slice_to:]
+    rows = re.findall(row_pattern, table.html_table)
+    if table_extraction.do_slice:
+        rows = rows[table_extraction.slice_from:table_extraction.slice_to:]
 
     for row in rows:
         filter_violation = False
@@ -238,6 +240,16 @@ def extract_episodes(page_html: str, filter_params: FilterParams) -> List[Episod
     episodes: List[Episode] = []
     for table in tables:
         episodes.extend(extract_row_datas(table, row_filter_patterns))
+
+    return episodes
+
+
+def extract_episodes_all(page_html: str) -> List[Episode]:
+    tables = extract_tables(page_html, [], None)
+
+    episodes: List[Episode] = []
+    for table in tables:
+        episodes.extend(extract_row_datas(table, []))
 
     return episodes
 
