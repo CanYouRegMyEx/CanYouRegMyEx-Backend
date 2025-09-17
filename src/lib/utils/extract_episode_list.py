@@ -107,6 +107,13 @@ def extract_tables(page_html: str, filter_patterns: List[re.Pattern[str]], slice
     tables_unformatted = re.findall(table_pattern, page_html)
     table_extractions: List[_TableExtraction] = []
 
+    slice_from = None
+    slice_to = None
+
+    if slice_index:
+        slice_from = slice_index[0]
+        slice_to = slice_index[1]
+
     for unformatted in tables_unformatted:
         filter_violation = False
         for pattern in filter_patterns:
@@ -143,10 +150,7 @@ def extract_tables(page_html: str, filter_patterns: List[re.Pattern[str]], slice
 
         table = Table(is_season, is_airing, season, start_ep, end_ep, header_str, content_str)
 
-        if slice_index:
-            slice_from = slice_index[0]
-            slice_to = slice_index[1]
-
+        if slice_from is not None and slice_to is not None:
             if slice_from < len(table):
                 table_extraction = _TableExtraction(table, do_slice=True, slice_from=slice_from, slice_to=slice_to)
                 table_extractions.append(table_extraction)
@@ -159,7 +163,7 @@ def extract_tables(page_html: str, filter_patterns: List[re.Pattern[str]], slice
             if slice_from < 0:
                 slice_from = 0
         else:
-            table_extraction = _TableExtraction(table, do_slice=True, slice_from=0, slice_to=0)
+            table_extraction = _TableExtraction(table, do_slice=False, slice_from=0, slice_to=0)
             table_extractions.append(table_extraction)
 
     return table_extractions
@@ -169,7 +173,9 @@ def extract_row_datas(table_extraction: _TableExtraction, filter_patterns: List[
     episodes: List[Episode] = []
 
     table = table_extraction.table
-    rows = re.findall(row_pattern, table.html_table)[table_extraction.slice_from:table_extraction.slice_to:]
+    rows = re.findall(row_pattern, table.html_table)
+    if table_extraction.do_slice:
+        rows = rows[table_extraction.slice_from:table_extraction.slice_to:]
 
     for row in rows:
         filter_violation = False
@@ -238,6 +244,16 @@ def extract_episodes(page_html: str, filter_params: FilterParams) -> List[Episod
     episodes: List[Episode] = []
     for table in tables:
         episodes.extend(extract_row_datas(table, row_filter_patterns))
+
+    return episodes
+
+
+def extract_episodes_all(page_html: str) -> List[Episode]:
+    tables = extract_tables(page_html, [], None)
+
+    episodes: List[Episode] = []
+    for table in tables:
+        episodes.extend(extract_row_datas(table, []))
 
     return episodes
 
