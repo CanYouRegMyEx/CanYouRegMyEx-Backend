@@ -107,6 +107,13 @@ def extract_tables(page_html: str, filter_patterns: List[re.Pattern[str]], slice
     tables_unformatted = re.findall(table_pattern, page_html)
     table_extractions: List[_TableExtraction] = []
 
+    slice_from = None
+    slice_to = None
+
+    if slice_index:
+        slice_from = slice_index[0]
+        slice_to = slice_index[1]
+
     for unformatted in tables_unformatted:
         filter_violation = False
         for pattern in filter_patterns:
@@ -143,10 +150,7 @@ def extract_tables(page_html: str, filter_patterns: List[re.Pattern[str]], slice
 
         table = Table(is_season, is_airing, season, start_ep, end_ep, header_str, content_str)
 
-        if slice_index:
-            slice_from = slice_index[0]
-            slice_to = slice_index[1]
-
+        if slice_from is not None and slice_to is not None:
             if slice_from < len(table):
                 table_extraction = _TableExtraction(table, do_slice=True, slice_from=slice_from, slice_to=slice_to)
                 table_extractions.append(table_extraction)
