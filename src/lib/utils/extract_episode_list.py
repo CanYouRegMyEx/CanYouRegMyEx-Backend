@@ -43,11 +43,12 @@ class Table:
     season: int
     start_ep: int
     end_ep: int
+    special_eps: int
     header: str
     html_table: str
 
     def __len__(self) -> int:
-        return self.end_ep - self.start_ep + 1
+        return (self.end_ep - self.start_ep) + self.special_eps + 1
 
     def __str__(self) -> str:
         return f"Table: S{self.season} ({self.start_ep}-{self.end_ep}) [{self.header}]"
@@ -85,6 +86,8 @@ class Episode:
 table_pattern = re.compile(r"(<h3>.*?</table>)", re.DOTALL)
 table_header_pattern = re.compile(r"<h3><span.*?>(.*?)</span></h3>")
 table_header_extractor_pattern = re.compile(r"Season (\d+?) - Episodes (\d+?)-(.+)")
+row_special_episode_pattern = re.compile(r'<tr>\s<td style=\".*?background:#f2fde9;\">(R\d.*?)</td></tr>|<tr>\s<td style=\".*?background:(?!#f2fde9;).*?</tr>', re.DOTALL)
+
 table_content_pattern = re.compile(r"<tbody.*?><tr>\s*?<th.+?</th></tr>\s*(.*?)\s*</tbody>", re.DOTALL)
 row_pattern = re.compile(r"<tr>(?P<rowdata>.*?)</tr>", re.DOTALL)
 data_pattern = re.compile(r"<td.*?>(.*?)</td>\s*?", re.DOTALL)
@@ -93,13 +96,15 @@ plot_pattern = re.compile(r"<img.*?src=\".*?/Plot-(.*?)\..*?\".*?>")
 source_tv_original_pattern = re.compile(r".*?<b>TV Original</b>.*?")
 # generic_html_tag_pattern = re.compile(r"</?(.*?)(?: |>)")
 # generic_html_tag_pattern = re.compile(r"<(.*?)>")
-generic_html_tag_open_pattern = re.compile(r"<([^/].*?)>")
-generic_html_tag_close_pattern = re.compile(r"<(/.*?)>")
+citation_pattern = re.compile(r"(<sup id=\"cite.*?</sup>)")
+generic_html_tag_open_pattern = re.compile(r"(<[^/].*?>)")
+generic_html_tag_close_pattern = re.compile(r"(<(?:/.*?|.*?/)>)")
 
 
 def remove_html_tags(string: str) -> str:
-    string = re.sub(generic_html_tag_open_pattern, '', string)
+    string = re.sub(citation_pattern, '', string)
     string = re.sub(generic_html_tag_close_pattern, ' ', string)
+    string = re.sub(generic_html_tag_open_pattern, '', string)
     return string.strip()
 
 
@@ -148,7 +153,9 @@ def extract_tables(page_html: str, filter_patterns: List[re.Pattern[str]], slice
                 is_airing = False
                 end_ep = int(header_extracted[0][2])
 
-        table = Table(is_season, is_airing, season, start_ep, end_ep, header_str, content_str)
+        special_eps = len(re.findall(row_special_episode_pattern, content_str))
+
+        table = Table(is_season, is_airing, season, start_ep, end_ep, special_eps, header_str, content_str)
 
         if slice_from is not None and slice_to is not None:
             if slice_from < len(table):
