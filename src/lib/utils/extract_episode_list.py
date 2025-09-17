@@ -103,12 +103,8 @@ def remove_html_tags(string: str) -> str:
     return string.strip()
 
 
-def extract_tables(page_html: str, filter_patterns: List[re.Pattern[str]], slice_index: Tuple[int, int]) -> List[_TableExtraction]:
-    slice_from = slice_index[0]
-    slice_to = slice_index[1]
-
+def extract_tables(page_html: str, filter_patterns: List[re.Pattern[str]], slice_index: Tuple[int, int] | None) -> List[_TableExtraction]:
     tables_unformatted = re.findall(table_pattern, page_html)
-
     table_extractions: List[_TableExtraction] = []
 
     for unformatted in tables_unformatted:
@@ -147,17 +143,24 @@ def extract_tables(page_html: str, filter_patterns: List[re.Pattern[str]], slice
 
         table = Table(is_season, is_airing, season, start_ep, end_ep, header_str, content_str)
 
-        if slice_from < len(table):
-            table_extraction = _TableExtraction(table, do_slice=True, slice_from=slice_from, slice_to=slice_to)
+        if slice_index:
+            slice_from = slice_index[0]
+            slice_to = slice_index[1]
+
+            if slice_from < len(table):
+                table_extraction = _TableExtraction(table, do_slice=True, slice_from=slice_from, slice_to=slice_to)
+                table_extractions.append(table_extraction)
+
+            slice_from -= len(table)
+            slice_to -= len(table)
+
+            if slice_to < 0:
+                break
+            if slice_from < 0:
+                slice_from = 0
+        else:
+            table_extraction = _TableExtraction(table, do_slice=True, slice_from=0, slice_to=0)
             table_extractions.append(table_extraction)
-
-        slice_from -= len(table)
-        slice_to -= len(table)
-
-        if slice_to < 0:
-            break
-        if slice_from < 0:
-            slice_from = 0
 
     return table_extractions
 
@@ -237,6 +240,14 @@ def extract_episodes(page_html: str, filter_params: FilterParams) -> List[Episod
         episodes.extend(extract_row_datas(table, row_filter_patterns))
 
     return episodes
+
+
+def extract_seasons(page_html: str) -> List[int]:
+    tables = extract_tables(page_html, [], None)
+
+    seasons = [table_ex.table.season for table_ex in tables if table_ex.table.season != 0]
+
+    return seasons
 
 
 def extract_episodes_asdict(page_html: str, filter_params: FilterParams):
