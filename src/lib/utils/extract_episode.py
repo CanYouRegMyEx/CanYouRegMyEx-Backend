@@ -94,6 +94,8 @@ episode_number_pattern = re.compile(r'Episode\s+(\d+).*?Episode\s+([^)]*)', re.D
 src_image_pattern = re.compile(r'src="([^"]+)"', re.DOTALL)
 
 description_paragraph_pattern = re.compile(r'<p>\s*<i><b>.*\s</p>')
+description_paragraph_without_tag_i_pattern = re.compile(r'<p>\s*<b>.*\s</p>')
+
 description_pattern = re.compile(r'\s*[^>&*;]+(?=<)')
 #main_characters_pattern = re.compile(r'<div\s+style="display:flex[^"]*".*?>\s(.*?)<h2>', re.DOTALL)
 main_characters_pattern = re.compile(r'<div style="background:[^>]*">Characters</div>.*?</div>\n</div>\n', re.DOTALL)
@@ -565,9 +567,13 @@ def main_extract_episode(url: str):
 
     info_table = re.findall(info_table_pattern, html_content)
     episode_data = extract_table_infobox(info_table, episode_data)
- 
-    paragraph_description = re.findall(description_paragraph_pattern, html_content)
-    episode_data = extract_episode_description(paragraph_description, episode_data )
+    
+    try:
+        paragraph_description = re.findall(description_paragraph_pattern, html_content)
+        episode_data = extract_episode_description(paragraph_description, episode_data )
+    except:
+        paragraph_description = re.findall(description_paragraph_without_tag_i_pattern, html_content)
+        episode_data = extract_episode_description(paragraph_description, episode_data )
 
     try:
         div_main_characters = re.findall(main_characters_pattern, html_content)
