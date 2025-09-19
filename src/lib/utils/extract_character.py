@@ -131,9 +131,14 @@ def extract_character_profile(html_string):
 
         if row_header == "Japanese name":
             row_data_cleansed = furigana_cleanse_filter_pipeline.filter(row_data)
-            name_jpn, romanji = re.split(br_split_pattern, row_data_cleansed)
-            name_jpn = re.sub(span_tag_substitute_pattern, '', name_jpn)
-            profile_data["name_jpn"] = name_jpn
+            
+            try:
+                name_jpn, romanji = re.split(br_split_pattern, row_data_cleansed)
+                name_jpn = re.sub(span_tag_substitute_pattern, '', name_jpn)
+                profile_data["name_jpn"] = name_jpn
+            except:
+                name_jpn = re.sub(span_tag_substitute_pattern, '', row_data_cleansed)
+                profile_data["name_jpn"] = name_jpn
 
         elif row_header == "English name":
             names_eng = re.split(br_split_pattern, row_data)
