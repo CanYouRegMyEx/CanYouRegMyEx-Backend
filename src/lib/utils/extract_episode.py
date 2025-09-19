@@ -264,6 +264,7 @@ def extract_main_characters(div_main_characters, episode_data: dict)-> dict:
             path = re.findall(r'href="/wiki/(.*?)"', tag_a_character)
             # print(f"Black list append : {path}")
             black_list_character.append(re.sub(r'_Appearances', "", path[0]))
+            print(black_list_character)
 
         for char in re.finditer(href_name_src_character_pattern, tag_a_character):
             # wiki/Unnamed_law_enforcers
@@ -283,9 +284,6 @@ def extract_main_characters(div_main_characters, episode_data: dict)-> dict:
             if path_to_character == "":
                 url = ""
 
-            # print(black_list_character)
-            if name.replace(" ", "_") in black_list_character:
-                url = ""
             
             isFlashBack = re.findall(r'(flashback)', name)
             if isFlashBack != []:
@@ -298,8 +296,12 @@ def extract_main_characters(div_main_characters, episode_data: dict)-> dict:
                 name = re.sub(r'\(.*?\)',"",name)
                 url = "character/" + name
 
+            # print(black_list_character)
+            if name.replace(" ", "_") in black_list_character:
+                url = ""
+                
             main_character_data = {
-                "character_url": url.replace(" ", "_"),
+                "character_url": re.sub(r'\(.*\)',' ', url.replace(" ", "_")),
                 "character_image_url": BASE_URL + char.group("image_url"),
                 "name_eng":  name,
                 "character_info": []
