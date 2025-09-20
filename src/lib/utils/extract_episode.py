@@ -94,6 +94,8 @@ episode_number_pattern = re.compile(r'Episode\s+(\d+).*?Episode\s+([^)]*)', re.D
 src_image_pattern = re.compile(r'src="([^"]+)"', re.DOTALL)
 
 description_paragraph_pattern = re.compile(r'<p>\s*<i><b>.*\s</p>')
+description_paragraph_without_tag_i_pattern = re.compile(r'<p>\s*<b>.*\s</p>')
+
 description_pattern = re.compile(r'\s*[^>&*;]+(?=<)')
 #main_characters_pattern = re.compile(r'<div\s+style="display:flex[^"]*".*?>\s(.*?)<h2>', re.DOTALL)
 main_characters_pattern = re.compile(r'<div style="background:[^>]*">Characters</div>.*?</div>\n</div>\n', re.DOTALL)
@@ -264,6 +266,7 @@ def extract_main_characters(div_main_characters, episode_data: dict)-> dict:
             path = re.findall(r'href="/wiki/(.*?)"', tag_a_character)
             # print(f"Black list append : {path}")
             black_list_character.append(re.sub(r'_Appearances', "", path[0]))
+            print(black_list_character)
 
         for char in re.finditer(href_name_src_character_pattern, tag_a_character):
             # wiki/Unnamed_law_enforcers
@@ -283,9 +286,6 @@ def extract_main_characters(div_main_characters, episode_data: dict)-> dict:
             if path_to_character == "":
                 url = ""
 
-            # print(black_list_character)
-            if name.replace(" ", "_") in black_list_character:
-                url = ""
             
             isFlashBack = re.findall(r'(flashback)', name)
             if isFlashBack != []:
@@ -298,8 +298,12 @@ def extract_main_characters(div_main_characters, episode_data: dict)-> dict:
                 name = re.sub(r'\(.*?\)',"",name)
                 url = "character/" + name
 
+            # print(black_list_character)
+            if name.replace(" ", "_") in black_list_character:
+                url = ""
+                
             main_character_data = {
-                "character_url": url.replace(" ", "_"),
+                "character_url": re.sub(r'\(.*\)',' ', url.replace(" ", "_")),
                 "character_image_url": BASE_URL + char.group("image_url"),
                 "name_eng":  name,
                 "character_info": []
@@ -563,9 +567,13 @@ def main_extract_episode(url: str):
 
     info_table = re.findall(info_table_pattern, html_content)
     episode_data = extract_table_infobox(info_table, episode_data)
- 
-    paragraph_description = re.findall(description_paragraph_pattern, html_content)
-    episode_data = extract_episode_description(paragraph_description, episode_data )
+    
+    try:
+        paragraph_description = re.findall(description_paragraph_pattern, html_content)
+        episode_data = extract_episode_description(paragraph_description, episode_data )
+    except:
+        paragraph_description = re.findall(description_paragraph_without_tag_i_pattern, html_content)
+        episode_data = extract_episode_description(paragraph_description, episode_data )
 
     try:
         div_main_characters = re.findall(main_characters_pattern, html_content)
