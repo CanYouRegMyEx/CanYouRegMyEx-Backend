@@ -93,7 +93,7 @@ row_pattern = re.compile(r"<tr>(?P<rowdata>.*?)</tr>", re.DOTALL)
 data_pattern = re.compile(r"<td.*?>(.*?)</td>\s*?", re.DOTALL)
 episode_pattern = re.compile(r"<a\s*?href=\"(.*?)\"\s*?title=\"(.*?)\">(.*?)</a>")
 plot_pattern = re.compile(r"<img.*?src=\".*?/Plot-(.*?)\..*?\".*?>")
-source_tv_original_pattern = re.compile(r".*?<b>TV Original</b>.*?")
+source_tv_original_pattern = re.compile(r"<b>TV Original</b>")
 # generic_html_tag_pattern = re.compile(r"</?(.*?)(?: |>)")
 # generic_html_tag_pattern = re.compile(r"<(.*?)>")
 citation_pattern = re.compile(r"(<sup id=\"cite.*?</sup>)")
@@ -213,7 +213,7 @@ def extract_row_datas(table_extraction: _TableExtraction, filter_patterns: List[
         plot_unformatted = re.findall(plot_pattern, row_data_unformatted[5])
         plots = set((map(lambda plot_string: Plot[plot_string.upper()], plot_unformatted)))
         manga_source = remove_html_tags(row_data_unformatted[6])
-        is_tv_original = True if re.match(source_tv_original_pattern, manga_source) else False
+        is_tv_original = True if re.match(source_tv_original_pattern, row_data_unformatted[6]) else False
         next_hint = remove_html_tags(row_data_unformatted[7])
 
         episode = Episode(season, index_jpn, index_int, episode_meta, date_jpn, date_eng, plots, manga_source, is_tv_original, next_hint)
